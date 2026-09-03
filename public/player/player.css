@@ -1,0 +1,672 @@
+/* ===================================================
+   NIZHOOT — PLAYER / SMARTPHONE STYLESHEET
+   =================================================== */
+
+:root {
+  --bg-dark: #0B0F19;
+  --bg-card: #161F30;
+  --border-color: #26354D;
+  --text-main: #FFFFFF;
+  --text-muted: #94A3B8;
+
+  /* Palet Warna Resmi Nizhoot */
+  --color-a: #C724B1; /* Magenta */
+  --color-b: #1368CE; /* Biru */
+  --color-c: #22D3C5; /* Cyan */
+  --color-d: #7ED321; /* Hijau */
+
+  --font-stack: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --radius-lg: 16px;
+  --radius-md: 10px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+  font-family: var(--font-stack);
+  color: var(--text-main);
+  user-select: none;
+}
+
+.player-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* ===================================================
+   TOP HEADER HUD
+   =================================================== */
+.player-header {
+  height: 52px;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: rgba(11, 15, 25, 0.95);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 50;
+}
+
+.player-brand {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #FFF;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.player-header-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-text {
+  font-weight: 800;
+}
+
+.player-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.player-name-badge {
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 3px 10px;
+  border-radius: 20px;
+  color: var(--text-muted);
+  max-width: 110px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-score-badge {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-c);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===================================================
+   VIEW PANELS
+   =================================================== */
+.player-view {
+  display: none;
+  flex: 1;
+  width: 100%;
+  height: calc(100% - 52px);
+  position: relative;
+  overflow-y: auto;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.player-view.active {
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ===================================================
+   VIEW 1: JOIN FORM
+   =================================================== */
+#viewJoin {
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.join-card {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2.2rem 1.8rem;
+  text-align: center;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+}
+
+.join-logo-box {
+  margin-bottom: 0.8rem;
+}
+
+.join-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
+.join-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin-bottom: 0.3rem;
+}
+
+.join-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 1.8rem;
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  text-align: left;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.9rem 1.2rem;
+  background-color: #0B0F19;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: #FFF;
+  font-size: 1.15rem;
+  font-family: inherit;
+  font-weight: 700;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  border-color: var(--color-b);
+  box-shadow: 0 0 0 3px rgba(19, 104, 206, 0.25);
+}
+
+.pin-input {
+  letter-spacing: 0.15em;
+  font-size: 1.4rem;
+  text-align: center;
+  color: #FACC15;
+}
+
+.error-banner {
+  background-color: rgba(239, 68, 68, 0.2);
+  border: 1px solid #EF4444;
+  color: #FCA5A5;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.btn-join {
+  margin-top: 0.5rem;
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, var(--color-b), #0D47A1);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #FFF;
+  font-size: 1.15rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(19, 104, 206, 0.4);
+  transition: transform 0.15s, background-color 0.2s;
+}
+
+.btn-join:active {
+  transform: scale(0.97);
+}
+
+/* ===================================================
+   VIEW 2: LOBBY WAITING
+   =================================================== */
+#viewLobby {
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+
+.lobby-waiting-card {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.avatar-ring {
+  width: 85px;
+  height: 85px;
+  background: linear-gradient(135deg, var(--color-a), var(--color-b));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  box-shadow: 0 0 25px rgba(199, 36, 177, 0.4);
+}
+
+.avatar-emoji {
+  font-size: 2.8rem;
+}
+
+.waiting-name {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  color: #FFF;
+}
+
+.ready-pill {
+  display: inline-block;
+  background-color: rgba(126, 211, 33, 0.2);
+  border: 1px solid var(--color-d);
+  color: var(--color-d);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 4px 14px;
+  border-radius: 20px;
+  margin-bottom: 1.8rem;
+}
+
+.waiting-instruction {
+  font-size: 1rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.waiting-instruction strong {
+  color: #FACC15;
+}
+
+.waiting-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--color-c);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===================================================
+   VIEW 3: GAMEPAD DENGAN SOAL, MEDIA & PILIHAN
+   =================================================== */
+#viewGamepad {
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem;
+  height: 100%;
+}
+
+.gamepad-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.4rem 0.4rem;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.gamepad-timer {
+  color: #FACC15;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.25rem;
+}
+
+/* Kartu Soal di Player */
+.player-question-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.6rem;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.player-question-text {
+  font-size: clamp(1rem, 3.5vw, 1.25rem);
+  font-weight: 700;
+  color: #FFF;
+  line-height: 1.35;
+}
+
+.player-media-container {
+  margin-top: 0.6rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-height: 140px;
+  overflow: hidden;
+}
+
+.player-media-img {
+  max-height: 130px;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+}
+
+.player-video-wrapper iframe,
+.player-video-wrapper video {
+  width: 100%;
+  max-height: 130px;
+  border-radius: var(--radius-md);
+  border: none;
+}
+
+/* 4 Tombol 2x2 Gamepad dengan Teks & Bentuk */
+.gamepad-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.gamepad-btn {
+  border: none;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.8rem 0.9rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.1s ease, filter 0.2s;
+  color: #FFF;
+  text-align: left;
+}
+
+.gamepad-btn:active {
+  transform: scale(0.94);
+  filter: brightness(1.2);
+}
+
+.btn-a { background-color: var(--color-a); }
+.btn-b { background-color: var(--color-b); }
+.btn-c { background-color: var(--color-c); }
+.btn-d { background-color: var(--color-d); }
+
+.btn-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.opt-letter {
+  font-size: 1.3rem;
+  font-weight: 900;
+  opacity: 0.85;
+}
+
+.btn-opt-text {
+  font-size: clamp(0.95rem, 3.2vw, 1.25rem);
+  font-weight: 700;
+  line-height: 1.25;
+  margin-top: auto;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* CSS Clip-Path Simbol Bentuk di HP */
+.shape-symbol {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  background-color: #FFFFFF;
+}
+
+.shape-hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.shape-chevron {
+  clip-path: polygon(0% 0%, 70% 0%, 100% 50%, 70% 100%, 0% 100%, 30% 50%);
+}
+
+.shape-star {
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.shape-triangle {
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+/* ===================================================
+   VIEW 4: SUBMITTED WAITING
+   =================================================== */
+#viewSubmitted {
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+
+.submitted-card {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.submitted-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.submitted-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.submitted-text {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.submitted-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.submitted-dots span {
+  width: 12px;
+  height: 12px;
+  background-color: var(--color-c);
+  border-radius: 50%;
+  animation: dotPulse 1.4s infinite cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.submitted-dots span:nth-child(1) { animation-delay: -0.32s; }
+.submitted-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes dotPulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.6); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* ===================================================
+   VIEW 5: RESULT FEEDBACK
+   =================================================== */
+#viewResult {
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.result-card {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+  color: #FFF;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+  animation: resultPop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes resultPop {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.result-card.correct {
+  background: linear-gradient(135deg, #16A34A, #15803D);
+  border: 2px solid #4ADE80;
+}
+
+.result-card.wrong {
+  background: linear-gradient(135deg, #DC2626, #991B1B);
+  border: 2px solid #F87171;
+}
+
+.result-icon-box {
+  font-size: 4.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.result-title {
+  font-size: 2.2rem;
+  font-weight: 900;
+  margin-bottom: 0.4rem;
+}
+
+.result-points {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-bottom: 1.8rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.95;
+}
+
+.result-stats-box {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-md);
+  padding: 1.2rem;
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 1.5rem;
+}
+
+.stat-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.stat-title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.stat-val {
+  font-size: 1.5rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-footer-text {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* ===================================================
+   VIEW 6: FINAL PODIUM PLAYER
+   =================================================== */
+#viewFinal {
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+
+.final-card {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.final-trophy {
+  font-size: 5rem;
+  margin-bottom: 1rem;
+}
+
+.final-title {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #FACC15;
+  margin-bottom: 1.2rem;
+}
+
+.final-rank-tag {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+}
+
+.final-rank-display {
+  font-size: 4rem;
+  font-weight: 900;
+  color: #FFF;
+  margin-bottom: 0.4rem;
+}
+
+.final-score-display {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--color-c);
+  margin-bottom: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.final-sub {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}

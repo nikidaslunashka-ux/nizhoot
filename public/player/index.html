@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Nizhoot — Player Controller</title>
+  <link rel="icon" type="image/png" href="/assets/images/nizhoot-logo.png">
+  <link rel="stylesheet" href="/player/player.css">
+</head>
+<body>
+  <div class="player-container">
+    <!-- TOP BAR PLAYER -->
+    <header class="player-header">
+      <div class="player-brand">
+        <img src="/assets/images/nizhoot-logo.png" alt="Nizhoot Logo" class="player-header-logo">
+        <span class="brand-text">Nizhoot</span>
+      </div>
+      <div class="player-meta" id="playerMeta" style="display: none;">
+        <span class="player-name-badge" id="hudNickname">-</span>
+        <span class="player-score-badge" id="hudScore">0 pts</span>
+      </div>
+    </header>
+
+    <!-- VIEW 1: FORM JOIN -->
+    <section id="viewJoin" class="player-view active">
+      <div class="join-card">
+        <div class="join-logo-box">
+          <img src="/assets/images/nizhoot-logo.png" alt="Nizhoot" class="join-logo">
+        </div>
+        <h1 class="join-title">Gabung Kuis</h1>
+        <p class="join-desc">Masukkan PIN room dan nama panggilanmu.</p>
+
+        <form id="formJoin" class="join-form" onsubmit="return false;">
+          <div class="input-group">
+            <label for="inputPin">Game PIN</label>
+            <input type="number" id="inputPin" class="form-input pin-input" placeholder="Contoh: 12345" required autocomplete="off">
+          </div>
+
+          <div class="input-group">
+            <label for="inputNickname">Nama Panggilan</label>
+            <input type="text" id="inputNickname" class="form-input" placeholder="Nama Anda" maxlength="18" required autocomplete="off">
+          </div>
+
+          <div id="joinErrorMessage" class="error-banner" style="display: none;"></div>
+
+          <button type="submit" id="btnSubmitJoin" class="btn-join">
+            Masuk Game 🚀
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- VIEW 2: LOBBY WAITING -->
+    <section id="viewLobby" class="player-view">
+      <div class="lobby-waiting-card">
+        <div class="avatar-ring">
+          <span class="avatar-emoji">😎</span>
+        </div>
+        <h2 class="waiting-name" id="waitingNickname">Pemain</h2>
+        <div class="ready-pill">Kamu Sudah Terdaftar!</div>
+        <p class="waiting-instruction">
+          Perhatikan layar <strong>proyektor di depan</strong>.<br>Kuis akan segera dimulai oleh host.
+        </p>
+        <div class="waiting-spinner"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: GAMEPAD DENGAN SOAL, MEDIA & 4 PILIHAN (NIZHOOT SHAPES) -->
+    <section id="viewGamepad" class="player-view">
+      <!-- Status Bar Soal & Timer -->
+      <div class="gamepad-status-bar">
+        <span id="gamepadQuestionNum">Soal 1</span>
+        <span class="gamepad-timer" id="gamepadTimer">20s</span>
+      </div>
+
+      <!-- Kartu Soal Lengkap di HP -->
+      <div class="player-question-card">
+        <p class="player-question-text" id="playerQuestionText">Pertanyaan kuis sedang dimuat...</p>
+        
+        <!-- Wadah Media di Player (Gambar / Video) -->
+        <div class="player-media-container" id="playerMediaContainer" style="display: none;">
+          <img id="playerMediaImage" class="player-media-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Media Soal">
+          <div id="playerVideoWrapper" class="player-video-wrapper" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- 4 Tombol Pilihan Jawaban (Grid 2x2 dengan Teks & Bentuk) -->
+      <div class="gamepad-grid">
+        <button class="gamepad-btn btn-a" data-option="a" aria-label="Opsi A Hexagon">
+          <div class="btn-top-row">
+            <span class="shape-symbol shape-hexagon"></span>
+            <span class="opt-letter">A</span>
+          </div>
+          <div class="btn-opt-text" id="playerOptA">Pilihan A</div>
+        </button>
+
+        <button class="gamepad-btn btn-b" data-option="b" aria-label="Opsi B Chevron">
+          <div class="btn-top-row">
+            <span class="shape-symbol shape-chevron"></span>
+            <span class="opt-letter">B</span>
+          </div>
+          <div class="btn-opt-text" id="playerOptB">Pilihan B</div>
+        </button>
+
+        <button class="gamepad-btn btn-c" data-option="c" aria-label="Opsi C Bintang">
+          <div class="btn-top-row">
+            <span class="shape-symbol shape-star"></span>
+            <span class="opt-letter">C</span>
+          </div>
+          <div class="btn-opt-text" id="playerOptC">Pilihan C</div>
+        </button>
+
+        <button class="gamepad-btn btn-d" data-option="d" aria-label="Opsi D Segitiga">
+          <div class="btn-top-row">
+            <span class="shape-symbol shape-triangle"></span>
+            <span class="opt-letter">D</span>
+          </div>
+          <div class="btn-opt-text" id="playerOptD">Pilihan D</div>
+        </button>
+      </div>
+    </section>
+
+    <!-- VIEW 4: MENUNGGU WAKTU HABIS SETELAH MENJAWAB -->
+    <section id="viewSubmitted" class="player-view">
+      <div class="submitted-card">
+        <div class="submitted-icon">⌛</div>
+        <h2 class="submitted-title">Jawaban Terkirim!</h2>
+        <p class="submitted-text">Tunggu hingga waktu habis untuk melihat hasilnya.</p>
+        <div class="submitted-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 5: HASIL FEEDBACK RONDE -->
+    <section id="viewResult" class="player-view">
+      <div class="result-card" id="resultCard">
+        <div class="result-icon-box" id="resultIcon">🎉</div>
+        <h2 class="result-title" id="resultTitle">Benar!</h2>
+        <div class="result-points" id="resultPoints">+950 Poin</div>
+        
+        <div class="result-stats-box">
+          <div class="stat-col">
+            <span class="stat-title">Peringkat</span>
+            <span class="stat-val" id="resultRank">#1</span>
+          </div>
+          <div class="stat-col">
+            <span class="stat-title">Streak</span>
+            <span class="stat-val" id="resultStreak">🔥 1</span>
+          </div>
+        </div>
+
+        <p class="result-footer-text">Lihat layar utama atau HP untuk pembahasan soal!</p>
+      </div>
+    </section>
+
+    <!-- VIEW 6: FINAL PODIUM PLAYER -->
+    <section id="viewFinal" class="player-view">
+      <div class="final-card">
+        <div class="final-trophy">🏆</div>
+        <h1 class="final-title">Kuis Selesai!</h1>
+        <p class="final-rank-tag">Peringkat Akhirmu:</p>
+        <div class="final-rank-display" id="finalRankDisplay">#1</div>
+        <div class="final-score-display" id="finalScoreDisplay">0 Poin</div>
+        <p class="final-sub">Terima kasih telah berpartisipasi di Nizhoot!</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/shared/soundFX.js"></script>
+  <script src="/player/player.js"></script>
+</body>
+</html>

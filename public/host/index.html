@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nizhoot — Layar Host (Proyektor)</title>
+  <link rel="icon" type="image/png" href="/assets/images/nizhoot-logo.png">
+  <link rel="stylesheet" href="/host/host.css">
+</head>
+<body>
+  <!-- HEADER PERSISTEN -->
+  <header class="top-nav">
+    <div class="brand">
+      <img src="/assets/images/nizhoot-logo.png" alt="Nizhoot Logo" class="brand-img">
+      <span class="brand-name">Nizhoot</span>
+      <span class="brand-badge">HOST</span>
+    </div>
+    
+    <div class="header-center" id="headerRoomInfo" style="display: none;">
+      <span class="room-pin-tag">PIN: <strong id="headerPinText">-----</strong></span>
+      <span class="quiz-set-tag" id="headerQuizSetText">Set Soal</span>
+      
+      <!-- Toggle Autoplay -->
+      <div class="autoplay-toggle-wrapper" title="Beralih ke mode pergantian soal otomatis">
+        <label class="switch">
+          <input type="checkbox" id="toggleAutoplay">
+          <span class="slider round"></span>
+        </label>
+        <span class="autoplay-label" id="autoplayStatusLabel">Mode Manual</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button id="btnSoundToggle" class="btn-icon" title="Toggle Suara">
+        <span id="soundIcon">🔊</span>
+      </button>
+      <button id="btnFullscreen" class="btn-icon" title="Fullscreen Proyektor">⛶</button>
+    </div>
+  </header>
+
+  <main class="main-stage">
+    <!-- VIEW 1: PILIH SET KUIS SEBELUM ROOM DIBUAT -->
+    <section id="viewSetup" class="stage-view active">
+      <div class="setup-card">
+        <div class="setup-logo-box">
+          <img src="/assets/images/nizhoot-logo.png" alt="Nizhoot Logo" class="setup-logo">
+        </div>
+        <h1 class="stage-title">Mulai Sesi Kuis Nizhoot</h1>
+        <p class="stage-subtitle">Pilih set kuis untuk memulai ruang kuis interaktif pada layar proyektor.</p>
+
+        <div class="form-group">
+          <label for="selectQuizSet">Pilih Set Soal:</label>
+          <select id="selectQuizSet" class="custom-select">
+            <option value="">Memuat data spreadsheet...</option>
+          </select>
+        </div>
+
+        <div class="set-preview-box" id="setPreviewBox">
+          <div class="preview-stat">
+            <span class="stat-num" id="previewQuestionCount">0</span>
+            <span class="stat-label">Soal Tersedia</span>
+          </div>
+          <div class="preview-meta" id="previewMetaText">
+            Sumber: Google Spreadsheet
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btnCreateRoom" class="btn-primary-large" disabled>
+            ⚡ Buat Room Kuis
+          </button>
+          <a href="/admin" class="btn-secondary" target="_blank">
+            🛠️ Admin Panel / Tambah Soal
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: LOBBY MENUNGGU PESERTA -->
+    <section id="viewLobby" class="stage-view">
+      <div class="lobby-grid">
+        <!-- Kolom Kiri: Info PIN & QR Code -->
+        <div class="lobby-connect-box">
+          <div class="connect-instruction">
+            <p class="scan-label">Buka di HP peserta atau scan QR:</p>
+            <div class="join-url-pill" id="lobbyJoinUrlText">http://192.168.1.1:3000/player</div>
+          </div>
+
+          <div class="qr-wrapper">
+            <img id="lobbyQrImage" class="qr-code-img" alt="QR Code Join" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E">
+            <div class="qr-glow"></div>
+          </div>
+
+          <div class="pin-display-box">
+            <span class="pin-label">GAME PIN:</span>
+            <div class="pin-number" id="lobbyPinDisplay">00000</div>
+          </div>
+        </div>
+
+        <!-- Kolom Kanan: Live Daftar Peserta & Kontrol Start -->
+        <div class="lobby-players-box">
+          <div class="lobby-players-header">
+            <div class="player-count-pill">
+              <span class="pulse-dot"></span>
+              <span id="lobbyPlayerCount">0</span> Peserta Siap
+            </div>
+            <button id="btnStartQuiz" class="btn-start-game" disabled>
+              Mulai Kuis 🚀
+            </button>
+          </div>
+
+          <div class="lobby-roster" id="lobbyPlayerList">
+            <div class="roster-empty">
+              <div class="empty-spinner"></div>
+              <p>Menunggu peserta bergabung...</p>
+              <small>Scan QR code di samping atau masukkan PIN</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: TAMPILAN SOAL AKTIF -->
+    <section id="viewQuestion" class="stage-view">
+      <div class="question-header">
+        <div class="question-tracker">
+          <span id="questionCurrentNum">1</span> / <span id="questionTotalNum">10</span>
+        </div>
+        <div class="timer-widget">
+          <div class="timer-circular">
+            <svg viewBox="0 0 100 100" class="timer-svg">
+              <circle class="timer-bg-circle" cx="50" cy="50" r="45"></circle>
+              <circle id="timerProgressCircle" class="timer-bar-circle" cx="50" cy="50" r="45"></circle>
+            </svg>
+            <div class="timer-number" id="timerSeconds">20</div>
+          </div>
+        </div>
+        <div class="answers-counter">
+          <span class="counter-num" id="answeredCount">0</span>
+          <span class="counter-label">Jawaban Masuk</span>
+        </div>
+      </div>
+
+      <!-- Teks Pertanyaan -->
+      <div class="question-prompt-box">
+        <h2 class="question-text" id="questionText">Pertanyaan kuis sedang disiapkan...</h2>
+      </div>
+
+      <!-- Wadah Media (Gambar atau Video Opsional) -->
+      <div class="media-container" id="mediaContainer" style="display: none;">
+        <img id="mediaImage" class="media-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Media Soal">
+        <div id="mediaVideoWrapper" class="video-embed-wrapper" style="display: none;"></div>
+      </div>
+
+      <!-- Grid 4 Opsi Jawaban (Bentuk Nizhoot Baru) -->
+      <div class="answers-grid" id="answersGrid">
+        <div class="answer-card card-a" id="cardA">
+          <div class="shape-container"><span class="shape-icon shape-hexagon"></span></div>
+          <div class="answer-label">A</div>
+          <div class="answer-text" id="optTextA">Pilihan A</div>
+        </div>
+        <div class="answer-card card-b" id="cardB">
+          <div class="shape-container"><span class="shape-icon shape-chevron"></span></div>
+          <div class="answer-label">B</div>
+          <div class="answer-text" id="optTextB">Pilihan B</div>
+        </div>
+        <div class="answer-card card-c" id="cardC">
+          <div class="shape-container"><span class="shape-icon shape-star"></span></div>
+          <div class="answer-label">C</div>
+          <div class="answer-text" id="optTextC">Pilihan C</div>
+        </div>
+        <div class="answer-card card-d" id="cardD">
+          <div class="shape-container"><span class="shape-icon shape-triangle"></span></div>
+          <div class="answer-label">D</div>
+          <div class="answer-text" id="optTextD">Pilihan D</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: RINGKASAN RONDE & LEADERBOARD SEMENTARA -->
+    <section id="viewSummary" class="stage-view">
+      <div class="summary-top-bar">
+        <div class="summary-title-box">
+          <h2 class="summary-heading">Hasil Ronde</h2>
+          <p class="summary-sub">Kunci Jawaban: <span class="correct-badge" id="summaryCorrectAnswer">-</span></p>
+        </div>
+        
+        <div class="summary-action-box">
+          <div id="autoplayBanner" class="autoplay-countdown-banner" style="display: none;">
+            ⏳ Lanjut otomatis dalam <strong id="autoplayCountdownNum">5</strong>s...
+          </div>
+          <button id="btnNextQuestion" class="btn-primary-large">
+            Lanjut ke Soal Berikutnya ➔
+          </button>
+        </div>
+      </div>
+
+      <div class="summary-layout">
+        <!-- Grafik Distribusi Jawaban -->
+        <div class="summary-chart-card">
+          <h3 class="card-subtitle">Distribusi Pilihan Peserta</h3>
+          <div class="stats-chart" id="statsChart">
+            <div class="chart-bar-row">
+              <span class="bar-tag tag-a"><span class="mini-shape shape-hexagon"></span> A</span>
+              <div class="bar-track">
+                <div class="bar-fill fill-a" id="barFillA"></div>
+              </div>
+              <span class="bar-count" id="barCountA">0</span>
+            </div>
+            <div class="chart-bar-row">
+              <span class="bar-tag tag-b"><span class="mini-shape shape-chevron"></span> B</span>
+              <div class="bar-track">
+                <div class="bar-fill fill-b" id="barFillB"></div>
+              </div>
+              <span class="bar-count" id="barCountB">0</span>
+            </div>
+            <div class="chart-bar-row">
+              <span class="bar-tag tag-c"><span class="mini-shape shape-star"></span> C</span>
+              <div class="bar-track">
+                <div class="bar-fill fill-c" id="barFillC"></div>
+              </div>
+              <span class="bar-count" id="barCountC">0</span>
+            </div>
+            <div class="chart-bar-row">
+              <span class="bar-tag tag-d"><span class="mini-shape shape-triangle"></span> D</span>
+              <div class="bar-track">
+                <div class="bar-fill fill-d" id="barFillD"></div>
+              </div>
+              <span class="bar-count" id="barCountD">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Leaderboard Top 5 -->
+        <div class="summary-leaderboard-card">
+          <h3 class="card-subtitle">Peringkat Sementara (Top 5)</h3>
+          <div class="leaderboard-list" id="leaderboardList">
+            <!-- Diisi dinamis via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 5: FINAL PODIUM -->
+    <section id="viewPodium" class="stage-view">
+      <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+      <div class="podium-header">
+        <h1 class="podium-title">🏆 Pemenang Kuis Nizhoot 🏆</h1>
+        <p class="podium-subtitle" id="podiumSubtitle">Selamat kepada para juara!</p>
+      </div>
+
+      <!-- Podium 3 Besar -->
+      <div class="podium-stage">
+        <!-- Juara 2 -->
+        <div class="podium-pillar rank-2">
+          <div class="podium-avatar">🥈</div>
+          <div class="podium-name" id="podium2Name">-</div>
+          <div class="podium-score" id="podium2Score">0 pts</div>
+          <div class="pillar-block block-2">
+            <span class="pillar-number">2</span>
+          </div>
+        </div>
+
+        <!-- Juara 1 -->
+        <div class="podium-pillar rank-1">
+          <div class="crown-icon">👑</div>
+          <div class="podium-avatar gold">🥇</div>
+          <div class="podium-name" id="podium1Name">-</div>
+          <div class="podium-score" id="podium1Score">0 pts</div>
+          <div class="pillar-block block-1">
+            <span class="pillar-number">1</span>
+          </div>
+        </div>
+
+        <!-- Juara 3 -->
+        <div class="podium-pillar rank-3">
+          <div class="podium-avatar">🥉</div>
+          <div class="podium-name" id="podium3Name">-</div>
+          <div class="podium-score" id="podium3Score">0 pts</div>
+          <div class="pillar-block block-3">
+            <span class="pillar-number">3</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="podium-actions">
+        <button id="btnRestartQuiz" class="btn-primary-large">
+          🔄 Buat Sesi Baru
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Socket.io & Sound Engine Scripts -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/shared/soundFX.js"></script>
+  <script src="/host/host.js"></script>
+</body>
+</html>
