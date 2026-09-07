@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node test/verify.js"
+    "test": "node test/verify.js && node test/test_avatar_lucide.js && node test/test_edit_question.js"
   },
   "author": "",
   "license": "ISC",

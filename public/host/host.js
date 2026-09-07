@@ -11,7 +11,7 @@ let currentQuizSet = null;
 let totalQuestions = 0;
 let quizSetsData = [];
 let confettiAnimationId = null;
-let isAutoplayActive = false;
+let isAutoplayActive = true;
 
 // DOM Elements
 const views = {
@@ -30,6 +30,10 @@ const autoplayStatusLabel = document.getElementById('autoplayStatusLabel');
 const btnSoundToggle = document.getElementById('btnSoundToggle');
 const soundIcon = document.getElementById('soundIcon');
 const btnFullscreen = document.getElementById('btnFullscreen');
+const btnEndSession = document.getElementById('btnEndSession');
+const modalConfirmEndSession = document.getElementById('modalConfirmEndSession');
+const btnCancelEndSession = document.getElementById('btnCancelEndSession');
+const btnConfirmEndSession = document.getElementById('btnConfirmEndSession');
 
 // Setup View Elements
 const selectQuizSet = document.getElementById('selectQuizSet');
@@ -94,7 +98,14 @@ const btnRestartQuiz = document.getElementById('btnRestartQuiz');
 // 1. INISIALISASI & LOAD DATA QUIZ SET
 // ==========================================
 
+function renderLucideIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+  }
+}
+
 async function initHost() {
+  renderLucideIcons();
   try {
     const res = await fetch('/api/quiz-sets');
     const data = await res.json();
@@ -119,6 +130,14 @@ async function initHost() {
     console.error('Gagal memuat set kuis:', err);
     selectQuizSet.innerHTML = '<option value="">Gagal memuat spreadsheet</option>';
   }
+
+  // Default: Mode Otomatis aktif sejak awal
+  if (toggleAutoplay) {
+    toggleAutoplay.checked = true;
+    if (autoplayStatusLabel) autoplayStatusLabel.textContent = 'Mode Otomatis';
+  }
+
+  renderLucideIcons();
 }
 
 function updateSetPreview(setName) {
@@ -141,6 +160,17 @@ function switchView(viewName) {
       el.classList.remove('active');
     }
   }
+
+  // Tombol Akhiri Sesi hanya aktif selama kuis berlangsung (question atau summary)
+  if (btnEndSession) {
+    if (viewName === 'question' || viewName === 'summary') {
+      btnEndSession.style.display = 'inline-flex';
+    } else {
+      btnEndSession.style.display = 'none';
+    }
+  }
+
+  renderLucideIcons();
 }
 
 // ==========================================
@@ -191,7 +221,11 @@ btnRestartQuiz.addEventListener('click', () => {
 // Toggle Sound Mute
 btnSoundToggle.addEventListener('click', () => {
   const isMuted = window.soundFX.toggleMute();
-  soundIcon.textContent = isMuted ? '🔇' : '🔊';
+  const wrapper = document.getElementById('soundIconWrapper');
+  if (wrapper) {
+    wrapper.innerHTML = isMuted ? '<i data-lucide="volume-x"></i>' : '<i data-lucide="volume-2"></i>';
+    renderLucideIcons();
+  }
 });
 
 // Fullscreen Toggle
@@ -202,6 +236,43 @@ btnFullscreen.addEventListener('click', () => {
     document.exitFullscreen().catch(() => {});
   }
 });
+
+document.addEventListener('fullscreenchange', () => {
+  const fsIcon = document.getElementById('fullscreenIcon');
+  if (fsIcon) {
+    fsIcon.setAttribute('data-lucide', document.fullscreenElement ? 'minimize' : 'maximize');
+    renderLucideIcons();
+  }
+});
+
+// Modal & Tombol Akhiri Sesi Lebih Awal
+if (btnEndSession && modalConfirmEndSession) {
+  btnEndSession.addEventListener('click', () => {
+    modalConfirmEndSession.classList.add('active');
+  });
+
+  if (btnCancelEndSession) {
+    btnCancelEndSession.addEventListener('click', () => {
+      modalConfirmEndSession.classList.remove('active');
+    });
+  }
+
+  modalConfirmEndSession.addEventListener('click', (e) => {
+    if (e.target === modalConfirmEndSession) {
+      modalConfirmEndSession.classList.remove('active');
+    }
+  });
+
+  if (btnConfirmEndSession) {
+    btnConfirmEndSession.addEventListener('click', () => {
+      modalConfirmEndSession.classList.remove('active');
+      if (btnEndSession) btnEndSession.style.display = 'none';
+      if (currentPin) {
+        socket.emit('host:force_end_game', { pin: currentPin });
+      }
+    });
+  }
+}
 
 // ==========================================
 // 3. SOCKET.IO EVENT HANDLERS
@@ -225,6 +296,11 @@ socket.on('host:room_created', (data) => {
 
   switchView('lobby');
   window.soundFX.startLobby();
+
+  // Emit status autoplay default (Mode Otomatis) ke server saat room dibuat
+  if (isAutoplayActive) {
+    socket.emit('host:toggle_autoplay', { pin: currentPin, enabled: true });
+  }
 });
 
 // Update daftar pemain bergabung di Lobby
@@ -241,7 +317,15 @@ socket.on('host:player_list_update', ({ players, total, newPlayer }) => {
     players.forEach(p => {
       const chip = document.createElement('div');
       chip.className = 'player-chip';
-      chip.innerHTML = `<span>👤</span> ${escapeHtml(p.nickname)}`;
+      const initial = (p.nickname || '?').charAt(0).toUpperCase();
+      const avatarSrc = p.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(p.nickname)}`;
+      chip.innerHTML = `
+        <div class="chip-avatar-box">
+          <img src="${avatarSrc}" alt="${escapeHtml(p.nickname)}" class="chip-avatar-img" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <span class="chip-avatar-fallback" style="display: none;">${initial}</span>
+        </div>
+        <span class="chip-name">${escapeHtml(p.nickname)}</span>
+      `;
       lobbyPlayerList.appendChild(chip);
     });
   } else {
@@ -253,6 +337,7 @@ socket.on('host:player_list_update', ({ players, total, newPlayer }) => {
         <small>Scan QR code di samping atau buka link di HP</small>
       </div>`;
   }
+  renderLucideIcons();
 });
 
 // Soal baru dimulai
@@ -283,18 +368,23 @@ socket.on('host:new_question', (data) => {
   if (data.image_url) {
     mediaContainer.style.display = 'flex';
     mediaImage.style.display = 'block';
-    mediaImage.src = data.image_url;
+    mediaImage.src = formatDriveMediaUrl(data.image_url, 'image');
     mediaVideoWrapper.style.display = 'none';
     mediaVideoWrapper.innerHTML = '';
   } else if (data.video_url) {
     mediaContainer.style.display = 'flex';
     mediaImage.style.display = 'none';
     mediaVideoWrapper.style.display = 'block';
-    const embedUrl = getYouTubeEmbedUrl(data.video_url);
-    if (embedUrl.includes('youtube.com/embed/')) {
-      mediaVideoWrapper.innerHTML = `<iframe src="${embedUrl}?autoplay=1&mute=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+    if (data.video_url.includes('drive.google.com') || data.video_url.includes('docs.google.com')) {
+      const previewUrl = formatDriveMediaUrl(data.video_url, 'video');
+      mediaVideoWrapper.innerHTML = `<iframe src="${previewUrl}" allow="autoplay" allowfullscreen></iframe>`;
     } else {
-      mediaVideoWrapper.innerHTML = `<video src="${data.video_url}" autoplay muted loop controls></video>`;
+      const embedUrl = getYouTubeEmbedUrl(data.video_url);
+      if (embedUrl.includes('youtube.com/embed/')) {
+        mediaVideoWrapper.innerHTML = `<iframe src="${embedUrl}?autoplay=1&mute=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      } else {
+        mediaVideoWrapper.innerHTML = `<video src="${data.video_url}" autoplay muted loop controls></video>`;
+      }
     }
   } else {
     mediaContainer.style.display = 'none';
@@ -341,10 +431,14 @@ socket.on('host:question_finished', (data) => {
   summaryCorrectAnswer.textContent = correctLetter.toUpperCase();
 
   // Update tombol Lanjut / Podium
+  const btnNextText = document.getElementById('btnNextQuestionText');
+  const btnNextIcon = document.getElementById('btnNextIcon');
   if (data.isLastQuestion) {
-    btnNextQuestion.textContent = '🏆 Lihat Podium Final ➔';
+    if (btnNextText) btnNextText.textContent = 'Lihat Podium Final';
+    if (btnNextIcon) btnNextIcon.setAttribute('data-lucide', 'trophy');
   } else {
-    btnNextQuestion.textContent = 'Lanjut ke Soal Berikutnya ➔';
+    if (btnNextText) btnNextText.textContent = 'Lanjut ke Soal Berikutnya';
+    if (btnNextIcon) btnNextIcon.setAttribute('data-lucide', 'arrow-right');
   }
 
   // Isi Grafik Statistik
@@ -373,9 +467,16 @@ socket.on('host:question_finished', (data) => {
       deltaHtml = `<span class="lb-delta delta-down">▼ ${item.rankDelta}</span>`;
     }
 
+    const initial = (item.nickname || '?').charAt(0).toUpperCase();
+    const avatarSrc = item.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(item.nickname)}`;
+
     row.innerHTML = `
       <div class="lb-left">
         <span class="lb-rank">#${item.rank}</span>
+        <div class="lb-avatar-box">
+          <img src="${avatarSrc}" alt="${escapeHtml(item.nickname)}" class="lb-avatar-img" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <span class="lb-avatar-fallback" style="display: none;">${initial}</span>
+        </div>
         <span class="lb-name">${escapeHtml(item.nickname)}</span>
         ${deltaHtml}
       </div>
@@ -383,6 +484,8 @@ socket.on('host:question_finished', (data) => {
     `;
     leaderboardList.appendChild(row);
   });
+
+  renderLucideIcons();
 });
 
 // Final Podium
@@ -391,22 +494,67 @@ socket.on('game:final_podium', (data) => {
   window.soundFX.playFanfare();
   switchView('podium');
 
-  const p = data.podium;
+  const p = data.podium || {};
+  const updatePodiumSlot = (boxId, player, defaultMedal) => {
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    if (player && (player.avatar || player.nickname)) {
+      const initial = (player.nickname || '?').charAt(0).toUpperCase();
+      const avatarUrl = player.avatar || `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(player.nickname || 'Winner')}`;
+      box.innerHTML = `
+        <div class="podium-avatar-wrapper">
+          <img src="${avatarUrl}" alt="${escapeHtml(player.nickname)}" class="podium-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <span class="podium-avatar-fallback" style="display: none;">${initial}</span>
+          <span class="podium-medal-badge">${defaultMedal}</span>
+        </div>
+      `;
+    } else {
+      box.innerHTML = `<span style="font-size: 2.2rem;">${defaultMedal}</span>`;
+    }
+  };
+
   if (p.first) {
     podium1Name.textContent = p.first.nickname;
     podium1Score.textContent = `${p.first.score.toLocaleString()} pts`;
   }
+  updatePodiumSlot('podium1AvatarBox', p.first, '🥇');
+
   if (p.second) {
     podium2Name.textContent = p.second.nickname;
     podium2Score.textContent = `${p.second.score.toLocaleString()} pts`;
   }
+  updatePodiumSlot('podium2AvatarBox', p.second, '🥈');
+
   if (p.third) {
     podium3Name.textContent = p.third.nickname;
     podium3Score.textContent = `${p.third.score.toLocaleString()} pts`;
   }
+  updatePodiumSlot('podium3AvatarBox', p.third, '🥉');
 
+  renderLucideIcons();
   startConfetti();
 });
+
+// Helper Google Drive direct view/thumbnail
+function formatDriveMediaUrl(url, type = 'image') {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  const match = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+                trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+                trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
+
+  if (match && match[1] && (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com'))) {
+    const fileId = match[1];
+    if (type === 'image') {
+      return `/api/media-proxy?fileId=${fileId}`;
+    } else {
+      return `https://drive.google.com/file/d/${fileId}/preview`;
+    }
+  }
+  return trimmed;
+}
 
 // Helper youtube embed
 function getYouTubeEmbedUrl(url) {

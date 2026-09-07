@@ -9,7 +9,8 @@ const { Server } = require('socket.io');
 const QRCode = require('qrcode');
 const multer = require('multer');
 
-const { loadQuestions, appendQuestionToSheet } = require('./sheetsLoader');
+const { loadQuestions, appendQuestionToSheet, updateQuestionRow, deleteQuestionRow, deleteQuizSetRows } = require('./sheetsLoader');
+const driveService = require('./driveService');
 const gameState = require('./gameState');
 
 const app = express();
@@ -55,28 +56,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Konfigurasi Multer untuk Upload Media
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, path.join(__dirname, '../public/assets/images'));
-    } else if (file.mimetype.startsWith('video/')) {
-      cb(null, path.join(__dirname, '../public/assets/videos'));
-    } else {
-      cb(new Error('Tipe file tidak didukung'), null);
-    }
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const cleanName = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
-    cb(null, `${Date.now()}_${cleanName}${ext}`);
-  }
-});
-
+// Konfigurasi Multer untuk Upload Media ke Memory (Buffer Google Drive)
+const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
-    fileSize: 12 * 1024 * 1024 // Buffer limit umum
+    fileSize: 55 * 1024 * 1024 // Buffer limit 55 MB
   },
   fileFilter: function (req, file, cb) {
     if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
@@ -138,11 +123,17 @@ app.get('/api/quiz-sets', async (req, res) => {
       lastFetched: data.lastFetched,
       totalQuestions: data.totalCount,
       setNames: data.setNames,
-      sets: Object.keys(data.sets).map(name => ({
-        name,
-        count: data.sets[name].length,
-        questions: data.sets[name]
-      }))
+      sets: Object.keys(data.sets).map(name => {
+        const summary = (data.setSummaries && data.setSummaries[name]) || {};
+        return {
+          name,
+          count: data.sets[name].length,
+          totalDuration: summary.totalDuration || (data.sets[name].reduce((acc, q) => acc + (q.duration_seconds || 20), 0)),
+          firstQuestion: summary.firstQuestion || (data.sets[name][0] ? data.sets[name][0].question : ''),
+          lastUpdated: summary.lastUpdated || (data.sets[name][0] ? data.sets[name][0].last_updated : new Date().toISOString()),
+          questions: data.sets[name]
+        };
+      })
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -171,9 +162,9 @@ app.get('/api/qr', async (req, res) => {
   }
 });
 
-// API: Upload Media (Gambar max 300 KB, Video max 8 MB)
+// API: Upload Media langsung ke Google Drive
 app.post('/api/upload', (req, res) => {
-  upload.single('mediaFile')(req, res, function (err) {
+  upload.single('mediaFile')(req, res, async function (err) {
     if (err) {
       return res.status(400).json({ success: false, error: err.message });
     }
@@ -185,42 +176,89 @@ app.post('/api/upload', (req, res) => {
     const file = req.file;
     const isImage = file.mimetype.startsWith('image/');
     const isVideo = file.mimetype.startsWith('video/');
+    const quizSet = req.body.quizSet || 'Default';
 
-    // Validasi Ukuran: Gambar max 300 KB
-    if (isImage && file.size > 300 * 1024) {
-      try { fs.unlinkSync(file.path); } catch (e) {}
+    // Batasan ukuran: Gambar max 10MB, Video max 50MB
+    if (isImage && file.size > 10 * 1024 * 1024) {
       return res.status(400).json({
         success: false,
-        error: `Ukuran gambar (${(file.size / 1024).toFixed(1)} KB) melebihi batas 300 KB. Silakan kompres gambar terlebih dahulu.`
+        error: `Ukuran gambar (${(file.size / 1024 / 1024).toFixed(1)} MB) melebihi batas 10 MB. Silakan kompres gambar terlebih dahulu.`
       });
     }
 
-    // Validasi Ukuran: Video max 8 MB
-    if (isVideo && file.size > 8 * 1024 * 1024) {
-      try { fs.unlinkSync(file.path); } catch (e) {}
+    if (isVideo && file.size > 50 * 1024 * 1024) {
       return res.status(400).json({
         success: false,
-        error: `Ukuran video (${(file.size / (1024 * 1024)).toFixed(1)} MB) melebihi batas 8 MB. Disarankan memakai link YouTube Unlisted jika video > 8 MB.`
+        error: `Ukuran video (${(file.size / 1024 / 1024).toFixed(1)} MB) melebihi batas 50 MB. Disarankan memakai link YouTube Unlisted.`
       });
     }
 
-    const publicUrl = isImage
-      ? `/assets/images/${file.filename}`
-      : `/assets/videos/${file.filename}`;
+    try {
+      const driveResult = await driveService.uploadMediaToDrive({
+        buffer: file.buffer,
+        filename: file.originalname,
+        mimetype: file.mimetype,
+        quizSet
+      });
 
-    res.json({
-      success: true,
-      url: publicUrl,
-      filename: file.filename,
-      sizeBytes: file.size
-    });
+      res.json({
+        success: true,
+        url: driveResult.url,
+        fileId: driveResult.fileId,
+        filename: driveResult.filename,
+        sizeBytes: driveResult.sizeBytes
+      });
+    } catch (uploadErr) {
+      console.error('[UploadAPI] Gagal upload ke Google Drive:', uploadErr.message);
+      res.status(500).json({
+        success: false,
+        error: `Gagal mengunggah ke Google Drive: ${uploadErr.message}`
+      });
+    }
   });
+});
+
+// API: Media Proxy untuk Gambar Google Drive (Anti-Blokir Browser / CORS / Referer)
+app.get('/api/media-proxy', async (req, res) => {
+  try {
+    const fileId = req.query.fileId || driveService.extractDriveFileId(req.query.url || '');
+    if (!fileId) {
+      return res.status(400).send('Parameter fileId atau url tidak valid.');
+    }
+
+    const driveUrl = `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1200`;
+    const response = await fetch(driveUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (!response.ok) {
+      console.warn(`[MediaProxy] Google Drive thumbnail HTTP ${response.status} untuk fileId: ${fileId}`);
+      return res.status(response.status).send('Gagal mengunduh gambar dari Google Drive.');
+    }
+
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    const arrayBuffer = await response.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    console.error('[MediaProxy] Error:', err.message);
+    res.status(500).send('Terjadi kesalahan internal proxy media.');
+  }
 });
 
 // API: Tambah Soal Baru ke Google Spreadsheet via Sheets API
 app.post('/api/admin/questions', async (req, res) => {
   try {
-    const questionData = req.body;
+    const questionData = {
+      ...req.body,
+      image_url: driveService.convertDriveUrl(req.body.image_url, 'image'),
+      video_url: driveService.convertDriveUrl(req.body.video_url, 'video')
+    };
     const result = await appendQuestionToSheet(questionData);
 
     // Reset cache soal agar data baru langsung terbaca
@@ -237,6 +275,106 @@ app.post('/api/admin/questions', async (req, res) => {
       success: false,
       error: err.message
     });
+  }
+});
+
+// API: Perbarui / Edit Soal di Google Spreadsheet via Sheets API
+app.put('/api/admin/questions/:rowNumber', async (req, res) => {
+  try {
+    const rowNumber = parseInt(req.params.rowNumber, 10);
+    if (!rowNumber || rowNumber < 2) {
+      return res.status(400).json({ success: false, error: 'Nomor baris tidak valid.' });
+    }
+
+    const questionData = {
+      ...req.body,
+      image_url: driveService.convertDriveUrl(req.body.image_url, 'image'),
+      video_url: driveService.convertDriveUrl(req.body.video_url, 'video')
+    };
+
+    const result = await updateQuestionRow(rowNumber, questionData);
+
+    // Reset cache soal agar data segar langsung terbaca
+    questionsCache = null;
+
+    res.json({
+      success: true,
+      message: 'Soal berhasil diperbarui di Google Spreadsheet!',
+      details: result
+    });
+  } catch (err) {
+    console.error('[AdminAPI] Gagal memperbarui soal:', err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
+// API: Hapus 1 Soal (Cascade Delete file di Google Drive + Hapus Baris Spreadsheet)
+app.delete('/api/admin/questions/:rowNumber', async (req, res) => {
+  try {
+    const rowNumber = parseInt(req.params.rowNumber, 10);
+    const mediaUrl = req.query.mediaUrl || (req.body && req.body.mediaUrl);
+
+    if (!rowNumber || rowNumber < 2) {
+      return res.status(400).json({ success: false, error: 'Nomor baris tidak valid.' });
+    }
+
+    // 1. Cascade delete file media di Google Drive jika ada
+    if (mediaUrl) {
+      try {
+        await driveService.deleteDriveFile(mediaUrl);
+      } catch (driveErr) {
+        console.warn('[AdminAPI] Lewati hapus file Drive:', driveErr.message);
+      }
+    }
+
+    // 2. Hapus baris dari Google Spreadsheet via Sheets API
+    await deleteQuestionRow(rowNumber);
+
+    // Reset cache
+    questionsCache = null;
+
+    res.json({
+      success: true,
+      message: `Soal pada baris ${rowNumber} dan file media Google Drive terkait berhasil dihapus!`
+    });
+  } catch (err) {
+    console.error('[AdminAPI] Gagal menghapus soal:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// API: Hapus Seluruh Set Kuis (Cascade Delete folder set di Google Drive + Hapus Baris Spreadsheet)
+app.delete('/api/admin/quiz-sets/:setName', async (req, res) => {
+  try {
+    const setName = decodeURIComponent(req.params.setName);
+
+    if (!setName) {
+      return res.status(400).json({ success: false, error: 'Nama set kuis tidak valid.' });
+    }
+
+    // 1. Cascade delete folder quiz_set di Google Drive (Images & Videos)
+    try {
+      await driveService.deleteQuizSetFolders(setName);
+    } catch (driveErr) {
+      console.warn('[AdminAPI] Lewati hapus folder Drive set:', driveErr.message);
+    }
+
+    // 2. Hapus semua baris set di Google Spreadsheet
+    const deleteResult = await deleteQuizSetRows(setName);
+
+    // Reset cache
+    questionsCache = null;
+
+    res.json({
+      success: true,
+      message: `Set "${setName}" (${deleteResult.deletedCount} soal) dan seluruh media terkait di Google Drive berhasil dihapus!`
+    });
+  } catch (err) {
+    console.error('[AdminAPI] Gagal menghapus set kuis:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -344,7 +482,29 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 5. Host Mengakhiri Kuis Manual
+  // 5. Host Mengakhiri Sesi Kuis di Tengah Jalan (Force End)
+  socket.on('host:force_end_game', ({ pin }) => {
+    const room = gameState.getRoom(pin);
+    if (!room || room.hostSocketId !== socket.id) return;
+
+    console.log(`[Game] Host menghentikan sesi kuis di tengah jalan (PIN: ${pin}).`);
+    if (room.timerHandle) {
+      clearInterval(room.timerHandle);
+      room.timerHandle = null;
+    }
+    if (room.autoplayTimer) {
+      clearTimeout(room.autoplayTimer);
+      room.autoplayTimer = null;
+    }
+
+    const finalData = gameState.forceEndGame(pin);
+    if (finalData) {
+      io.to(`room_${pin}`).emit('game:final_podium', finalData);
+      console.log(`[Game] Sesi PIN ${pin} diakhiri lebih awal. Menampilkan podium final.`);
+    }
+  });
+
+  // 6. Host Mengakhiri Kuis Manual (Normal)
   socket.on('host:end_quiz', ({ pin }) => {
     const room = gameState.getRoom(pin);
     if (!room || room.hostSocketId !== socket.id) return;
@@ -369,6 +529,7 @@ io.on('connection', (socket) => {
     socket.emit('player:joined_success', {
       pin,
       nickname: result.player.nickname,
+      avatar: result.player.avatar,
       gameState: result.room.state
     });
 

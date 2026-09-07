@@ -94,10 +94,14 @@ class GameStateManager {
       }
     }
 
+    const cleanSeed = `${cleanNick}_${socketId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6)}`;
+    const avatarUrl = `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(cleanSeed)}`;
+
     const player = {
       id: socketId,
       socketId,
       nickname: cleanNick,
+      avatar: avatarUrl,
       score: 0,
       previousScore: 0,
       rank: 0,
@@ -137,7 +141,8 @@ class GameStateManager {
     return Array.from(room.players.values()).map(p => ({
       id: p.id,
       nickname: p.nickname,
-      score: p.score
+      score: p.score,
+      avatar: p.avatar
     }));
   }
 
@@ -160,8 +165,10 @@ class GameStateManager {
     room.questionStartTime = Date.now();
     room.answerCounts = { a: 0, b: 0, c: 0, d: 0 };
 
-    // Reset status jawaban pemain untuk soal ini
+    // Reset status jawaban pemain untuk soal ini dan simpan skor ronde tuntas sebelumnya
     for (const player of room.players.values()) {
+      player.completedRoundScore = player.score;
+      player.completedRoundTotalCorrect = player.totalCorrect;
       player.currentAnswer = null;
       player.answeredAt = 0;
       player.lastPointsEarned = 0;
@@ -304,6 +311,7 @@ class GameStateManager {
     // Top 5 untuk layar proyektor
     const top5 = playerList.slice(0, 5).map(p => ({
       nickname: p.nickname,
+      avatar: p.avatar,
       score: p.score,
       pointsEarned: p.lastPointsEarned,
       rank: p.rank,
@@ -321,7 +329,8 @@ class GameStateManager {
         totalScore: p.score,
         rank: p.rank,
         totalPlayers: room.players.size,
-        streak: p.streak
+        streak: p.streak,
+        avatar: p.avatar
       });
     }
 
@@ -354,17 +363,41 @@ class GameStateManager {
       totalQuestions: room.questions.length,
       totalParticipants: playerList.length,
       podium: {
-        first: playerList[0] ? { nickname: playerList[0].nickname, score: playerList[0].score, totalCorrect: playerList[0].totalCorrect } : null,
-        second: playerList[1] ? { nickname: playerList[1].nickname, score: playerList[1].score, totalCorrect: playerList[1].totalCorrect } : null,
-        third: playerList[2] ? { nickname: playerList[2].nickname, score: playerList[2].score, totalCorrect: playerList[2].totalCorrect } : null
+        first: playerList[0] ? { nickname: playerList[0].nickname, avatar: playerList[0].avatar, score: playerList[0].score, totalCorrect: playerList[0].totalCorrect } : null,
+        second: playerList[1] ? { nickname: playerList[1].nickname, avatar: playerList[1].avatar, score: playerList[1].score, totalCorrect: playerList[1].totalCorrect } : null,
+        third: playerList[2] ? { nickname: playerList[2].nickname, avatar: playerList[2].avatar, score: playerList[2].score, totalCorrect: playerList[2].totalCorrect } : null
       },
       rankings: playerList.map((p, idx) => ({
         rank: idx + 1,
         nickname: p.nickname,
+        avatar: p.avatar,
         score: p.score,
         totalCorrect: p.totalCorrect
       }))
     };
+  }
+
+  /**
+   * Mengakhiri sesi kuis di tengah jalan secara paksa
+   */
+  forceEndGame(pin) {
+    const room = this.rooms.get(pin);
+    if (!room) return null;
+
+    // Jika dihentikan saat soal sedang aktif (QUESTION),
+    // kembalikan skor dan total correct pemain ke skor ronde sebelumnya yang tuntas
+    if (room.state === 'QUESTION') {
+      for (const player of room.players.values()) {
+        if (player.completedRoundScore !== undefined) {
+          player.score = player.completedRoundScore;
+        }
+        if (player.completedRoundTotalCorrect !== undefined) {
+          player.totalCorrect = player.completedRoundTotalCorrect;
+        }
+      }
+    }
+
+    return this.getFinalPodium(pin);
   }
 }
 

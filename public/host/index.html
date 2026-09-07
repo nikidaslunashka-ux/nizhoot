@@ -6,6 +6,12 @@
   <title>Nizhoot — Layar Host (Proyektor)</title>
   <link rel="icon" type="image/png" href="/assets/images/nizhoot-logo.png">
   <link rel="stylesheet" href="/host/host.css">
+  <script src="/shared/lucide.js"></script>
+  <script>
+    if (typeof lucide === 'undefined') {
+      document.write('<script src="https://unpkg.com/lucide@1.41.0/dist/umd/lucide.js"><\/script>');
+    }
+  </script>
 </head>
 <body>
   <!-- HEADER PERSISTEN -->
@@ -31,10 +37,15 @@
     </div>
 
     <div class="header-actions">
-      <button id="btnSoundToggle" class="btn-icon" title="Toggle Suara">
-        <span id="soundIcon">🔊</span>
+      <button id="btnEndSession" class="btn-danger-outline" style="display: none;" title="Akhiri sesi kuis lebih awal">
+        <i data-lucide="square"></i> Akhiri Sesi
       </button>
-      <button id="btnFullscreen" class="btn-icon" title="Fullscreen Proyektor">⛶</button>
+      <button id="btnSoundToggle" class="btn-icon" title="Toggle Suara">
+        <span id="soundIconWrapper"><i data-lucide="volume-2" id="soundIcon"></i></span>
+      </button>
+      <button id="btnFullscreen" class="btn-icon" title="Fullscreen Proyektor">
+        <i data-lucide="maximize" id="fullscreenIcon"></i>
+      </button>
     </div>
   </header>
 
@@ -67,10 +78,10 @@
 
         <div class="setup-actions">
           <button id="btnCreateRoom" class="btn-primary-large" disabled>
-            ⚡ Buat Room Kuis
+            <i data-lucide="zap"></i> Buat Room Kuis
           </button>
           <a href="/admin" class="btn-secondary" target="_blank">
-            🛠️ Admin Panel / Tambah Soal
+            <i data-lucide="settings"></i> Admin Panel / Tambah Soal
           </a>
         </div>
       </div>
@@ -102,10 +113,11 @@
           <div class="lobby-players-header">
             <div class="player-count-pill">
               <span class="pulse-dot"></span>
+              <i data-lucide="users"></i>
               <span id="lobbyPlayerCount">0</span> Peserta Siap
             </div>
             <button id="btnStartQuiz" class="btn-start-game" disabled>
-              Mulai Kuis 🚀
+              <i data-lucide="play"></i> Mulai Kuis
             </button>
           </div>
 
@@ -148,7 +160,7 @@
 
       <!-- Wadah Media (Gambar atau Video Opsional) -->
       <div class="media-container" id="mediaContainer" style="display: none;">
-        <img id="mediaImage" class="media-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Media Soal">
+        <img id="mediaImage" class="media-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Media Soal" referrerpolicy="no-referrer">
         <div id="mediaVideoWrapper" class="video-embed-wrapper" style="display: none;"></div>
       </div>
 
@@ -187,10 +199,10 @@
         
         <div class="summary-action-box">
           <div id="autoplayBanner" class="autoplay-countdown-banner" style="display: none;">
-            ⏳ Lanjut otomatis dalam <strong id="autoplayCountdownNum">5</strong>s...
+            <i data-lucide="clock"></i> Lanjut otomatis dalam <strong id="autoplayCountdownNum">5</strong>s...
           </div>
           <button id="btnNextQuestion" class="btn-primary-large">
-            Lanjut ke Soal Berikutnya ➔
+            <span id="btnNextQuestionText">Lanjut ke Soal Berikutnya</span> <i data-lucide="arrow-right" id="btnNextIcon"></i>
           </button>
         </div>
       </div>
@@ -198,7 +210,7 @@
       <div class="summary-layout">
         <!-- Grafik Distribusi Jawaban -->
         <div class="summary-chart-card">
-          <h3 class="card-subtitle">Distribusi Pilihan Peserta</h3>
+          <h3 class="card-subtitle"><i data-lucide="bar-chart-3"></i> Distribusi Pilihan Peserta</h3>
           <div class="stats-chart" id="statsChart">
             <div class="chart-bar-row">
               <span class="bar-tag tag-a"><span class="mini-shape shape-hexagon"></span> A</span>
@@ -233,7 +245,7 @@
 
         <!-- Leaderboard Top 5 -->
         <div class="summary-leaderboard-card">
-          <h3 class="card-subtitle">Peringkat Sementara (Top 5)</h3>
+          <h3 class="card-subtitle"><i data-lucide="trophy"></i> Peringkat Sementara (Top 5)</h3>
           <div class="leaderboard-list" id="leaderboardList">
             <!-- Diisi dinamis via JS -->
           </div>
@@ -245,7 +257,7 @@
     <section id="viewPodium" class="stage-view">
       <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
       <div class="podium-header">
-        <h1 class="podium-title">🏆 Pemenang Kuis Nizhoot 🏆</h1>
+        <h1 class="podium-title"><i data-lucide="trophy"></i> Pemenang Kuis Nizhoot <i data-lucide="trophy"></i></h1>
         <p class="podium-subtitle" id="podiumSubtitle">Selamat kepada para juara!</p>
       </div>
 
@@ -253,7 +265,7 @@
       <div class="podium-stage">
         <!-- Juara 2 -->
         <div class="podium-pillar rank-2">
-          <div class="podium-avatar">🥈</div>
+          <div class="podium-avatar" id="podium2AvatarBox">🥈</div>
           <div class="podium-name" id="podium2Name">-</div>
           <div class="podium-score" id="podium2Score">0 pts</div>
           <div class="pillar-block block-2">
@@ -263,8 +275,8 @@
 
         <!-- Juara 1 -->
         <div class="podium-pillar rank-1">
-          <div class="crown-icon">👑</div>
-          <div class="podium-avatar gold">🥇</div>
+          <div class="crown-icon"><i data-lucide="crown"></i></div>
+          <div class="podium-avatar gold" id="podium1AvatarBox">🥇</div>
           <div class="podium-name" id="podium1Name">-</div>
           <div class="podium-score" id="podium1Score">0 pts</div>
           <div class="pillar-block block-1">
@@ -274,7 +286,7 @@
 
         <!-- Juara 3 -->
         <div class="podium-pillar rank-3">
-          <div class="podium-avatar">🥉</div>
+          <div class="podium-avatar" id="podium3AvatarBox">🥉</div>
           <div class="podium-name" id="podium3Name">-</div>
           <div class="podium-score" id="podium3Score">0 pts</div>
           <div class="pillar-block block-3">
@@ -285,11 +297,30 @@
 
       <div class="podium-actions">
         <button id="btnRestartQuiz" class="btn-primary-large">
-          🔄 Buat Sesi Baru
+          <i data-lucide="refresh-cw"></i> Buat Sesi Baru
         </button>
       </div>
     </section>
   </main>
+
+  <!-- Modal Konfirmasi Akhiri Sesi Kuis Lebih Awal -->
+  <div id="modalConfirmEndSession" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-icon-box"><i data-lucide="alert-triangle"></i></div>
+      <h2 class="modal-title">Akhiri Sesi Kuis Sekarang?</h2>
+      <p class="modal-desc">
+        Soal yang sedang aktif tidak akan dihitung. Kuis akan langsung melompat ke <strong>Podium Final</strong> dan menampilkan peringkat pemenang berdasarkan ronde yang telah selesai.
+      </p>
+      <div class="modal-actions">
+        <button type="button" id="btnCancelEndSession" class="btn-modal-cancel">
+          Batal
+        </button>
+        <button type="button" id="btnConfirmEndSession" class="btn-modal-confirm">
+          <i data-lucide="square"></i> Ya, Akhiri Sesi
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Socket.io & Sound Engine Scripts -->
   <script src="/socket.io/socket.io.js"></script>

@@ -87,6 +87,49 @@ async function runTests() {
   assert(summary.leaderboard[0].nickname === 'Budi', 'Budi harus memimpin');
   console.log(`   ✔ Peringkat 1: ${summary.leaderboard[0].nickname} (${summary.leaderboard[0].score} pts).`);
 
+  // Test 8: Google Drive Service Helper
+  console.log('8. Menguji Google Drive File ID Extractor & Auto-Converter...');
+  const driveService = require('../server/driveService');
+  const testThumbUrl = 'https://drive.google.com/thumbnail?id=1a2B3c4D5e6F7g8H9i0J_kLmNoP&sz=w1000';
+  const testPreviewUrl = 'https://drive.google.com/file/d/1a2B3c4D5e6F7g8H9i0J_kLmNoP/preview';
+  const testExternalUrl = 'https://youtube.com/watch?v=dQw4w9WgXcQ';
+  const testRawShareUrl = 'https://drive.google.com/file/d/1a2B3c4D5e6F7g8H9i0J_kLmNoP/view?usp=sharing';
+
+  assert.strictEqual(driveService.extractDriveFileId(testThumbUrl), '1a2B3c4D5e6F7g8H9i0J_kLmNoP', 'Harus mengekstrak ID dari thumbnail URL');
+  assert.strictEqual(driveService.extractDriveFileId(testPreviewUrl), '1a2B3c4D5e6F7g8H9i0J_kLmNoP', 'Harus mengekstrak ID dari preview URL');
+  assert.strictEqual(driveService.extractDriveFileId(testExternalUrl), null, 'Harus mengembalikan null untuk non-Drive URL');
+  assert.strictEqual(driveService.convertDriveUrl(testRawShareUrl, 'image'), testThumbUrl, 'Harus mengonversi link sharing ke format thumbnail');
+  assert.strictEqual(driveService.convertDriveUrl(testRawShareUrl, 'video'), testPreviewUrl, 'Harus mengonversi link sharing ke format preview');
+  console.log('   ✔ Ekstraksi dan konversi link Google Drive tervalidasi.');
+
+  // Test 9: Fitur Akhiri Sesi di Tengah Jalan (forceEndGame)
+  console.log('9. Menguji Fitur Akhiri Sesi Lebih Awal (forceEndGame)...');
+  // Simulasikan mulai soal ke-2 dan ada jawaban yang masuk
+  gameState.startQuestion(pin, 1);
+  gameState.submitAnswer(pin, 'socket_123', 'b');
+  // Akhiri paksa di tengah jalan
+  const earlyPodium = gameState.forceEndGame(pin);
+  assert(earlyPodium && earlyPodium.rankings, 'Podium final harus terbuat');
+  const budiFinal = earlyPodium.rankings.find(r => r.nickname === 'Budi');
+  assert.strictEqual(budiFinal.score, 1000, 'Skor soal aktif harus dibatalkan, hanya menghitung ronde yang tuntas');
+  assert.strictEqual(budiFinal.totalCorrect, 1, 'Total benar harus merefleksikan hanya ronde yang tuntas');
+  console.log('   ✔ Penghentian sesi lebih awal berhasil tervalidasi dengan rollback soal aktif.');
+
+  // Test 10: Fitur Avatar Acak DiceBear
+  console.log('10. Menguji Fitur Avatar Acak DiceBear (Adventurer)...');
+  const pinAvatar = gameState.generatePin();
+  gameState.createRoom(pinAvatar, 'Avatar Set', testQuestions, 'mock-host-socket-2');
+  const pA = gameState.addPlayer(pinAvatar, 'socket-alpha', 'Andi');
+  const pB = gameState.addPlayer(pinAvatar, 'socket-beta', 'Andi'); // nama sama beda socket
+  assert(pB.success === false, 'Nama sama dalam 1 room harus dicegah');
+  const pC = gameState.addPlayer(pinAvatar, 'socket-gamma', 'Citra');
+  assert(pA.player.avatar.includes('api.dicebear.com/9.x/adventurer/svg'), 'Avatar harus berupa URL DiceBear Adventurer SVG');
+  assert(pC.player.avatar.includes('api.dicebear.com/9.x/adventurer/svg'), 'Avatar Citra harus berupa URL DiceBear Adventurer SVG');
+  assert.notStrictEqual(pA.player.avatar, pC.player.avatar, 'Avatar Andi dan Citra harus memiliki seed berbeda');
+  const lobbyList = gameState.getPlayerList(pinAvatar);
+  assert(lobbyList[0].avatar && lobbyList[1].avatar, 'Daftar lobby harus menyertakan avatar URL');
+  console.log('   ✔ Avatar otomatis DiceBear tervalidasi unik dan konsisten.');
+
   console.log('\n🎉 SEMUA PENGUJIAN FITUR BARU BERHASIL (100% PASS)!');
 }
 

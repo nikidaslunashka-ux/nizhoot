@@ -5,12 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nizhoot — Admin & Bank Soal Google Sheets</title>
   <link rel="icon" type="image/png" href="/assets/images/nizhoot-logo.png">
+  <script src="/shared/lucide.js"></script>
+  <script>
+    if (typeof lucide === 'undefined') {
+      document.write('<script src="https://unpkg.com/lucide@1.41.0/dist/umd/lucide.js"><\/script>');
+    }
+  </script>
   <style>
     :root {
       --bg: #0B0F19;
       --card: #161F30;
       --card-subtle: #1E2B42;
+      --card-hover: #223452;
       --border: #26354D;
+      --border-accent: rgba(34, 211, 197, 0.4);
       --text: #FFFFFF;
       --muted: #94A3B8;
       
@@ -21,12 +29,20 @@
       --color-d: #7ED321;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    .lucide {
+      width: 1.15em;
+      height: 1.15em;
+      stroke-width: 2.2;
+      vertical-align: -0.16em;
+      display: inline-block;
+    }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: var(--bg);
       color: var(--text);
       padding: 2rem;
       line-height: 1.5;
+      min-height: 100vh;
     }
     .header {
       display: flex;
@@ -62,20 +78,276 @@
     }
     .nav-links a:hover { color: #FFF; background: var(--card); }
 
+    /* STATS BAR */
     .stats-bar {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.2rem;
       margin-bottom: 2rem;
     }
     .stat-card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 1.5rem;
+      padding: 1.2rem 1.5rem;
     }
-    .stat-val { font-size: 2.2rem; font-weight: 800; color: var(--color-c); }
-    .stat-lbl { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+    .stat-val { font-size: 2rem; font-weight: 800; color: var(--color-c); }
+    .stat-lbl { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; font-weight: 700; margin-top: 4px; }
+
+    /* VIEW CONTAINERS & TRANSITIONS */
+    .view-container {
+      display: none;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    .view-container.active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ACTION BAR */
+    .action-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #FFF;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .section-subtitle {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    /* BUTTONS */
+    .btn-primary {
+      background: linear-gradient(135deg, var(--color-b), #0D47A1);
+      color: #FFF;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.4rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      transition: 0.2s;
+    }
+    .btn-primary:hover {
+      filter: brightness(1.15);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 0.75rem 1.2rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: 0.2s;
+    }
+    .btn-secondary:hover {
+      color: #FFF;
+      border-color: var(--color-c);
+    }
+
+    /* QUIZ SET CARDS GRID */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .quiz-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .quiz-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--color-c);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    }
+    .quiz-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 0.8rem;
+    }
+    .quiz-card-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #FFF;
+      word-break: break-word;
+      padding-right: 0.5rem;
+    }
+    .quiz-card-btn-delete {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      font-size: 1.05rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: 0.2s;
+      flex-shrink: 0;
+    }
+    .quiz-card-btn-delete:hover {
+      color: #EF4444;
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+    .quiz-card-pills {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .pill-count { background: rgba(34, 211, 197, 0.15); color: var(--color-c); border: 1px solid rgba(34, 211, 197, 0.3); }
+    .pill-duration { background: #1E2B42; color: #CBD5E1; border: 1px solid var(--border); }
+
+    .quiz-card-preview {
+      background: rgba(11, 15, 25, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      font-size: 0.85rem;
+      color: #E2E8F0;
+      margin-bottom: 1.2rem;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      font-style: italic;
+    }
+    .quiz-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 0.8rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .quiz-card-enter {
+      color: var(--color-c);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: 0.2s;
+    }
+    .quiz-card:hover .quiz-card-enter {
+      transform: translateX(4px);
+    }
+
+    /* CARD BUAT SET BARU (ADD CARD) */
+    .card-add-new {
+      background: rgba(22, 31, 48, 0.4);
+      border: 2px dashed var(--border);
+      border-radius: 14px;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      min-height: 200px;
+      transition: 0.2s;
+    }
+    .card-add-new:hover {
+      border-color: var(--color-c);
+      background: rgba(34, 211, 197, 0.05);
+      transform: translateY(-3px);
+    }
+    .card-add-icon {
+      font-size: 2.5rem;
+      color: var(--color-c);
+      margin-bottom: 0.75rem;
+      line-height: 1;
+    }
+    .card-add-text {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #FFF;
+    }
+    .card-add-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* DETAIL VIEW HEADER */
+    .detail-header-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+    .detail-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .detail-title-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .detail-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #FFF;
+    }
 
     /* FORM TAMBAH SOAL */
     .form-card {
@@ -87,9 +359,9 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.4);
     }
     .form-title {
-      font-size: 1.4rem;
+      font-size: 1.25rem;
       font-weight: 800;
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.3rem;
       color: #FFF;
       display: flex;
       align-items: center;
@@ -97,8 +369,8 @@
     }
     .form-subtitle {
       color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 1.8rem;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
     }
     .form-grid {
       display: grid;
@@ -153,19 +425,16 @@
     .badge-c { background-color: var(--color-c); }
     .badge-d { background-color: var(--color-d); }
 
-    /* Upload & Alert Box */
-    .media-upload-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.2rem;
-      background: rgba(11, 15, 25, 0.5);
-      border: 1px dashed var(--border);
-      padding: 1.2rem;
+    /* Media Upload & Drive */
+    .media-card-box {
+      grid-column: 1 / -1;
+      background: rgba(11, 15, 25, 0.6);
+      border: 1px solid var(--border);
       border-radius: 10px;
+      padding: 1.2rem;
       margin-top: 0.5rem;
     }
     .media-info-box {
-      grid-column: 1 / -1;
       background-color: rgba(34, 211, 197, 0.1);
       border: 1px solid rgba(34, 211, 197, 0.3);
       color: #A5F3FC;
@@ -175,33 +444,66 @@
       display: flex;
       align-items: center;
       gap: 0.6rem;
+      margin-bottom: 1.2rem;
     }
+    .media-columns-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .media-section-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .media-section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .tab-bar {
+      display: flex;
+      background-color: #0B0F19;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+      margin-bottom: 0.75rem;
+    }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--card-subtle);
+      color: #FFF;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
     .upload-sub {
       font-size: 0.75rem;
       color: var(--muted);
       margin-top: 4px;
       display: block;
     }
-
-    .btn-submit {
-      padding: 0.9rem 2rem;
-      background: linear-gradient(135deg, var(--color-b), #0D47A1);
-      color: #FFF;
-      border: none;
-      border-radius: 8px;
-      font-size: 1.05rem;
-      font-weight: 800;
-      cursor: pointer;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-      transition: 0.2s;
-    }
-    .btn-submit:hover:not(:disabled) {
-      filter: brightness(1.15);
-      transform: translateY(-1px);
-    }
-    .btn-submit:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+    .upload-status-indicator {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--color-c);
+      margin-top: 6px;
+      display: none;
     }
 
     /* TOAST ALERT */
@@ -216,15 +518,15 @@
     .toast-success { background-color: rgba(126, 211, 33, 0.2); border: 1px solid var(--color-d); color: #86EFAC; }
     .toast-error { background-color: rgba(239, 68, 68, 0.2); border: 1px solid #EF4444; color: #FCA5A5; }
 
-    /* TABEL DAFTAR SOAL */
-    .set-section {
+    /* TABLE SOAL */
+    .table-section {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      margin-bottom: 2rem;
+      border-radius: 14px;
       overflow: hidden;
+      margin-bottom: 2rem;
     }
-    .set-header {
+    .table-header {
       padding: 1.2rem 1.5rem;
       background: rgba(0,0,0,0.25);
       border-bottom: 1px solid var(--border);
@@ -232,25 +534,104 @@
       align-items: center;
       justify-content: space-between;
     }
-    .set-title { font-size: 1.2rem; font-weight: 800; }
+    .table-title { font-size: 1.15rem; font-weight: 800; }
     .table-responsive { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
     th { background: #0B0F19; padding: 12px 16px; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border); }
-    td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
     tr:hover { background: rgba(255,255,255,0.02); }
     .badge-correct { background: var(--color-d); color: #FFF; font-weight: 800; padding: 3px 8px; border-radius: 4px; }
     .badge-sec { background: #334155; color: #94A3B8; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
-    .btn-refresh {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 6px 14px;
+    .badge-drive { background: rgba(34, 211, 197, 0.2); color: var(--color-c); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+    
+    .btn-action-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+    .btn-edit {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #60A5FA;
+      padding: 5px 12px;
       border-radius: 6px;
-      font-weight: 600;
+      font-size: 0.85rem;
+      font-weight: 700;
       cursor: pointer;
       transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
-    .btn-refresh:hover { color: #FFF; border-color: var(--color-c); }
+    .btn-edit:hover {
+      background: #2563EB;
+      color: #FFF;
+    }
+    .btn-delete {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #F87171;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-delete:hover {
+      background: #EF4444;
+      color: #FFF;
+    }
+
+    /* MODAL BUAT SET BARU */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      animation: modalPop 0.2s ease-out;
+    }
+    @keyframes modalPop {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-title {
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: #FFF;
+    }
+    .modal-desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
   </style>
 </head>
 <body>
@@ -260,140 +641,247 @@
       <span>Nizhoot Admin & Bank Soal</span>
     </div>
     <div class="nav-links">
-      <a href="/host">📺 Layar Host</a>
-      <a href="/player">📱 Layar Player</a>
+      <a href="/host"><i data-lucide="tv"></i> Layar Host</a>
+      <a href="/player"><i data-lucide="smartphone"></i> Layar Player</a>
     </div>
   </header>
 
-  <!-- STATS -->
+  <!-- STATS BAR (Ringkasan Global) -->
   <section class="stats-bar">
     <div class="stat-card">
       <div class="stat-val" id="statSetsCount">0</div>
-      <div class="stat-lbl">Set Kuis Terdeteksi</div>
+      <div class="stat-lbl">Paket Kuis Terdeteksi</div>
     </div>
     <div class="stat-card">
       <div class="stat-val" id="statQuestionsCount">0</div>
       <div class="stat-lbl">Total Soal di Spreadsheet</div>
     </div>
     <div class="stat-card">
-      <div class="stat-val" id="statLastFetch" style="font-size: 1.1rem; color: #FFF; padding-top: 10px;">-</div>
+      <div class="stat-val" id="statLastFetch" style="font-size: 1.1rem; color: #FFF; padding-top: 8px;">-</div>
       <div class="stat-lbl">Terakhir Disinkronkan</div>
     </div>
   </section>
 
-  <!-- FORM TAMBAH SOAL BARU -->
-  <section class="form-card">
-    <h2 class="form-title">✨ Tambah Soal Baru ke Google Spreadsheet</h2>
-    <p class="form-subtitle">Soal yang diinput di sini akan langsung disimpan ke Google Spreadsheet via Sheets API.</p>
-
-    <form id="formAddQuestion">
-      <div class="form-grid">
-        <!-- Teks Soal -->
-        <div class="form-group form-full">
-          <label for="inputQuestion">Pertanyaan Kuis *</label>
-          <textarea id="inputQuestion" class="form-control" rows="2" placeholder="Tuliskan teks pertanyaan..." required></textarea>
-        </div>
-
-        <!-- 4 Opsi Jawaban -->
-        <div class="form-group">
-          <label for="inputOptA">Pilihan A (Magenta) *</label>
-          <div class="opt-input-wrapper">
-            <span class="opt-badge badge-a">A</span>
-            <input type="text" id="inputOptA" class="form-control" placeholder="Jawaban A..." required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="inputOptB">Pilihan B (Biru) *</label>
-          <div class="opt-input-wrapper">
-            <span class="opt-badge badge-b">B</span>
-            <input type="text" id="inputOptB" class="form-control" placeholder="Jawaban B..." required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="inputOptC">Pilihan C (Cyan)</label>
-          <div class="opt-input-wrapper">
-            <span class="opt-badge badge-c">C</span>
-            <input type="text" id="inputOptC" class="form-control" placeholder="Jawaban C...">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="inputOptD">Pilihan D (Hijau)</label>
-          <div class="opt-input-wrapper">
-            <span class="opt-badge badge-d">D</span>
-            <input type="text" id="inputOptD" class="form-control" placeholder="Jawaban D...">
-          </div>
-        </div>
-
-        <!-- Kunci Jawaban & Durasi -->
-        <div class="form-group">
-          <label for="selectCorrect">Kunci Jawaban Benar *</label>
-          <select id="selectCorrect" class="form-control" required>
-            <option value="a">A (Magenta Hexagon)</option>
-            <option value="b">B (Biru Chevron)</option>
-            <option value="c">C (Cyan Bintang)</option>
-            <option value="d">D (Hijau Segitiga)</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="inputDuration">Durasi Waktu (Detik) *</label>
-          <input type="number" id="inputDuration" class="form-control" value="20" min="5" max="180" required>
-        </div>
-
-        <!-- Set Kuis -->
-        <div class="form-group form-full">
-          <label for="inputQuizSet">Kelompok / Set Kuis *</label>
-          <input type="text" id="inputQuizSet" class="form-control" placeholder="Pilih atau ketik set kuis baru (contoh: Umum, TI, Matematika)" list="listQuizSets" required>
-          <datalist id="listQuizSets"></datalist>
-        </div>
-
-        <!-- Bagian Upload Media Gambar & Video -->
-        <div class="form-group form-full">
-          <label>Lampiran Media (Opsional)</label>
-          <div class="media-upload-row">
-            <div class="media-info-box">
-              <span>💡</span>
-              <span><strong>Ketentuan Media:</strong> File gambar maks <strong>300 KB</strong>, file video maks <strong>8 MB</strong>. Disarankan memakai link <strong>YouTube Unlisted</strong> jika video &gt; 8 MB.</span>
-            </div>
-
-            <!-- Upload / URL Gambar -->
-            <div class="form-group">
-              <label for="fileImage">Upload Gambar (Maks 300 KB)</label>
-              <input type="file" id="fileImage" class="form-control" accept="image/png,image/jpeg,image/webp">
-              <span class="upload-sub">Atau isi link URL gambar:</span>
-              <input type="url" id="inputImageUrl" class="form-control" style="margin-top: 4px;" placeholder="https://... / path gambar">
-            </div>
-
-            <!-- Upload / URL Video -->
-            <div class="form-group">
-              <label for="fileVideo">Upload Video (Maks 8 MB)</label>
-              <input type="file" id="fileVideo" class="form-control" accept="video/mp4,video/webm">
-              <span class="upload-sub">Atau isi link video / YouTube embed:</span>
-              <input type="url" id="inputVideoUrl" class="form-control" style="margin-top: 4px;" placeholder="https://www.youtube.com/watch?v=...">
-            </div>
-          </div>
-        </div>
+  <!-- ==========================================
+       VIEW 1: DASHBOARD GRID (SEMUA PAKET KUIS)
+       ========================================== -->
+  <main id="viewDashboard" class="view-container active">
+    <div class="action-bar">
+      <div>
+        <h2 class="section-title"><i data-lucide="layers"></i> Paket Kuis Tersedia</h2>
+        <p class="section-subtitle">Klik kartu untuk mengelola dan menambah soal pada paket tersebut.</p>
       </div>
-
-      <div id="formToast" class="toast-box"></div>
-
-      <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
-        <button type="submit" id="btnSubmitQuestion" class="btn-submit">
-          💾 Simpan Soal ke Spreadsheet
+      <div class="action-buttons">
+        <button type="button" id="btnOpenCreateSetModal" class="btn-primary">
+          <i data-lucide="plus-circle"></i> Buat Paket Kuis Baru
         </button>
-        <button type="button" id="btnRefreshList" class="btn-refresh">
-          🔄 Sinkronisasi Data Spreadsheet
+        <button type="button" id="btnRefreshList" class="btn-secondary">
+          <i data-lucide="refresh-cw"></i> Sinkronkan Data
         </button>
       </div>
-    </form>
+    </div>
+
+    <!-- Container Grid Kartu Quiz Set -->
+    <div id="quizSetsGrid" class="cards-grid">
+      <p style="color: var(--muted); grid-column: 1 / -1;">Memuat daftar paket kuis...</p>
+    </div>
+  </main>
+
+  <!-- ==========================================
+       VIEW 2: SET DETAIL (SOAL & INPUT SOAL)
+       ========================================== -->
+  <section id="viewSetDetail" class="view-container">
+    <!-- Header Layar Detail -->
+    <div class="detail-header-card">
+      <div class="detail-left">
+        <button type="button" id="btnBackToDashboard" class="btn-secondary" style="align-self: flex-start;">
+          <i data-lucide="arrow-left"></i> Kembali ke Semua Paket Kuis
+        </button>
+        <div class="detail-title-row">
+          <h2 class="detail-title" id="detailSetName">Nama Paket Kuis</h2>
+          <span class="pill pill-count" id="detailSetCount">0 Soal</span>
+          <span class="pill pill-duration" id="detailSetDuration">~0s</span>
+        </div>
+      </div>
+      <div class="action-buttons">
+        <button type="button" id="btnDeleteCurrentSet" class="btn-delete" style="padding: 8px 16px;">
+          <i data-lucide="trash-2"></i> Hapus Paket Kuis Ini
+        </button>
+      </div>
+    </div>
+
+    <!-- Form Tambah / Edit Soal Khusus untuk Set Ini -->
+    <div class="form-card" id="cardQuestionForm">
+      <h3 class="form-title" id="formTitle">
+        <span id="formTitleIcon"><i data-lucide="plus-circle"></i></span>
+        <span id="formTitleText">Tambah Soal Baru ke Paket Ini</span>
+      </h3>
+      <p class="form-subtitle" id="formSubtitleText">Soal akan langsung disimpan ke Google Spreadsheet via Sheets API.</p>
+
+      <form id="formAddQuestion" novalidate>
+        <input type="hidden" id="inputQuizSet" value="">
+
+        <div class="form-grid">
+          <!-- Teks Soal -->
+          <div class="form-group form-full">
+            <label for="inputQuestion">Pertanyaan Kuis *</label>
+            <textarea id="inputQuestion" class="form-control" rows="2" placeholder="Tuliskan teks pertanyaan kuis..." required></textarea>
+          </div>
+
+          <!-- 4 Opsi Jawaban -->
+          <div class="form-group">
+            <label for="inputOptA">Pilihan A (Magenta) *</label>
+            <div class="opt-input-wrapper">
+              <span class="opt-badge badge-a">A</span>
+              <input type="text" id="inputOptA" class="form-control" placeholder="Jawaban A..." required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inputOptB">Pilihan B (Biru) *</label>
+            <div class="opt-input-wrapper">
+              <span class="opt-badge badge-b">B</span>
+              <input type="text" id="inputOptB" class="form-control" placeholder="Jawaban B..." required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inputOptC">Pilihan C (Cyan)</label>
+            <div class="opt-input-wrapper">
+              <span class="opt-badge badge-c">C</span>
+              <input type="text" id="inputOptC" class="form-control" placeholder="Jawaban C...">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="inputOptD">Pilihan D (Hijau)</label>
+            <div class="opt-input-wrapper">
+              <span class="opt-badge badge-d">D</span>
+              <input type="text" id="inputOptD" class="form-control" placeholder="Jawaban D...">
+            </div>
+          </div>
+
+          <!-- Kunci Jawaban & Durasi -->
+          <div class="form-group">
+            <label for="selectCorrect">Kunci Jawaban Benar *</label>
+            <select id="selectCorrect" class="form-control" required>
+              <option value="a">A (Magenta Hexagon)</option>
+              <option value="b">B (Biru Chevron)</option>
+              <option value="c">C (Cyan Bintang)</option>
+              <option value="d">D (Hijau Segitiga)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="inputDuration">Durasi Waktu (Detik) *</label>
+            <input type="number" id="inputDuration" class="form-control" value="20" min="5" max="180" required>
+          </div>
+
+          <!-- Lampiran Media (Google Drive & Manual Link) -->
+          <div class="form-group form-full">
+            <div class="media-card-box">
+              <div class="media-info-box">
+                <i data-lucide="link"></i>
+                <span><strong>Tautan Media (Opsional):</strong> Masukkan tautan gambar atau video (Google Drive / YouTube / Web). Nizhoot otomatis merender thumbnail gambar hemat bandwidth dan pemutar video responsif di proyektor & HP peserta.</span>
+              </div>
+
+              <div class="media-columns-grid">
+                <!-- Media Gambar -->
+                <div class="media-section-card">
+                  <div class="media-section-title"><i data-lucide="image"></i> Media Gambar (Opsional)</div>
+
+                  <div id="tab-img-link" class="tab-content active" style="display: block;">
+                    <label for="inputImageUrl">URL Gambar (Google Drive / Imgur / Web):</label>
+                    <input type="text" id="inputImageUrl" class="form-control" placeholder="https://drive.google.com/file/d/... atau link gambar">
+                    <span class="upload-sub">Tips Drive: Pastikan izin file diset "Siapa saja yang memiliki link dapat melihat".</span>
+                    <div id="imgPreviewBox" style="display: none; margin-top: 10px; text-align: center; background: #0B0F19; border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+                      <div style="font-size: 0.75rem; color: var(--muted); margin-bottom: 6px; font-weight: 700;">Pratinjau Gambar:</div>
+                      <img id="imgPreview" src="" alt="Pratinjau Gambar" referrerpolicy="no-referrer" style="max-height: 160px; max-width: 100%; border-radius: 6px; object-fit: contain; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Media Video -->
+                <div class="media-section-card">
+                  <div class="media-section-title"><i data-lucide="video"></i> Media Video (Opsional)</div>
+
+                  <div id="tab-vid-link" class="tab-content active" style="display: block;">
+                    <label for="inputVideoUrl">Link Video / YouTube Embed:</label>
+                    <input type="text" id="inputVideoUrl" class="form-control" placeholder="https://www.youtube.com/watch?v=... atau link Drive">
+                    <span class="upload-sub">Disarankan menggunakan YouTube Unlisted atau link share Google Drive.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="formToast" class="toast-box"></div>
+
+        <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" id="btnCancelEdit" class="btn-secondary" style="display: none;">
+            <i data-lucide="x"></i> Batal
+          </button>
+          <button type="submit" id="btnSubmitQuestion" class="btn-primary">
+            <span id="btnSubmitIcon"><i data-lucide="save"></i></span>
+            <span id="btnSubmitText">Simpan Soal ke Paket Ini</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Tabel Daftar Soal Khusus Set Ini -->
+    <div class="table-section">
+      <div class="table-header">
+        <h3 class="table-title">Daftar Soal pada Paket Ini</h3>
+        <span id="tableQuestionsCountBadge" class="pill pill-count">0 Soal</span>
+      </div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 50px;">No</th>
+              <th>Pertanyaan</th>
+              <th>Pilihan A & B</th>
+              <th>Pilihan C & D</th>
+              <th style="width: 70px;">Kunci</th>
+              <th style="width: 80px;">Durasi</th>
+              <th style="width: 100px;">Media</th>
+              <th style="text-align: right; width: 170px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="detailQuestionsTableBody">
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--muted); padding: 2rem;">
+                Belum ada soal pada paket ini. Gunakan form di atas untuk menambahkan soal pertama!
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
-  <!-- DAFTAR SOAL PER SET -->
-  <div id="setsContainer">
-    <p style="color: var(--muted);">Memuat daftar bank soal...</p>
+  <!-- ==========================================
+       MODAL: BUAT SET BARU
+       ========================================== -->
+  <div id="modalCreateSet" class="modal-overlay">
+    <div class="modal-box">
+      <h3 class="modal-title"><i data-lucide="plus-circle"></i> Buat Paket Kuis Baru</h3>
+      <p class="modal-desc">Beri nama paket kuis baru Anda (contoh: <em>Geografi</em>, <em>Bimtek Hari ke-2</em>, atau <em>Matematika Lanjut</em>).</p>
+
+      <form id="formCreateSetModal">
+        <div class="form-group">
+          <label for="inputModalSetName">Nama Paket Kuis *</label>
+          <input type="text" id="inputModalSetName" class="form-control" placeholder="Ketik nama paket kuis..." required autofocus>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btnCancelCreateSet" class="btn-secondary">Batal</button>
+          <button type="submit" class="btn-primary">Lanjut ke Isi Soal <i data-lucide="arrow-right"></i></button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script src="/admin/admin.js"></script>

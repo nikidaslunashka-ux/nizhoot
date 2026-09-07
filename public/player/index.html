@@ -6,6 +6,12 @@
   <title>Nizhoot — Player Controller</title>
   <link rel="icon" type="image/png" href="/assets/images/nizhoot-logo.png">
   <link rel="stylesheet" href="/player/player.css">
+  <script src="/shared/lucide.js"></script>
+  <script>
+    if (typeof lucide === 'undefined') {
+      document.write('<script src="https://unpkg.com/lucide@1.41.0/dist/umd/lucide.js"><\/script>');
+    }
+  </script>
 </head>
 <body>
   <div class="player-container">
@@ -16,6 +22,10 @@
         <span class="brand-text">Nizhoot</span>
       </div>
       <div class="player-meta" id="playerMeta" style="display: none;">
+        <div class="hud-avatar-box">
+          <img id="hudAvatarImg" class="hud-avatar-img" src="" alt="Avatar" style="display: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <span id="hudAvatarFallback" class="hud-avatar-fallback" style="display: none;">-</span>
+        </div>
         <span class="player-name-badge" id="hudNickname">-</span>
         <span class="player-score-badge" id="hudScore">0 pts</span>
       </div>
@@ -33,7 +43,7 @@
         <form id="formJoin" class="join-form" onsubmit="return false;">
           <div class="input-group">
             <label for="inputPin">Game PIN</label>
-            <input type="number" id="inputPin" class="form-input pin-input" placeholder="Contoh: 12345" required autocomplete="off">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" id="inputPin" class="form-input pin-input" placeholder="Contoh: 12345" required autocomplete="off">
           </div>
 
           <div class="input-group">
@@ -44,7 +54,7 @@
           <div id="joinErrorMessage" class="error-banner" style="display: none;"></div>
 
           <button type="submit" id="btnSubmitJoin" class="btn-join">
-            Masuk Game 🚀
+            <i data-lucide="log-in"></i> Masuk Game
           </button>
         </form>
       </div>
@@ -54,10 +64,11 @@
     <section id="viewLobby" class="player-view">
       <div class="lobby-waiting-card">
         <div class="avatar-ring">
-          <span class="avatar-emoji">😎</span>
+          <img id="waitingAvatarImg" class="waiting-avatar-img" src="" alt="Avatar" style="display: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <span id="waitingAvatarFallback" class="waiting-avatar-fallback" style="display: none;">?</span>
         </div>
         <h2 class="waiting-name" id="waitingNickname">Pemain</h2>
-        <div class="ready-pill">Kamu Sudah Terdaftar!</div>
+        <div class="ready-pill"><i data-lucide="check-circle"></i> Kamu Sudah Terdaftar!</div>
         <p class="waiting-instruction">
           Perhatikan layar <strong>proyektor di depan</strong>.<br>Kuis akan segera dimulai oleh host.
         </p>
@@ -70,7 +81,7 @@
       <!-- Status Bar Soal & Timer -->
       <div class="gamepad-status-bar">
         <span id="gamepadQuestionNum">Soal 1</span>
-        <span class="gamepad-timer" id="gamepadTimer">20s</span>
+        <span class="gamepad-timer" id="gamepadTimer"><i data-lucide="clock"></i> <span id="gamepadTimerSeconds">20s</span></span>
       </div>
 
       <!-- Kartu Soal Lengkap di HP -->
@@ -79,7 +90,7 @@
         
         <!-- Wadah Media di Player (Gambar / Video) -->
         <div class="player-media-container" id="playerMediaContainer" style="display: none;">
-          <img id="playerMediaImage" class="player-media-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Media Soal">
+          <img id="playerMediaImage" class="player-media-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Media Soal" referrerpolicy="no-referrer">
           <div id="playerVideoWrapper" class="player-video-wrapper" style="display: none;"></div>
         </div>
       </div>
@@ -123,7 +134,7 @@
     <!-- VIEW 4: MENUNGGU WAKTU HABIS SETELAH MENJAWAB -->
     <section id="viewSubmitted" class="player-view">
       <div class="submitted-card">
-        <div class="submitted-icon">⌛</div>
+        <div class="submitted-icon"><i data-lucide="hourglass"></i></div>
         <h2 class="submitted-title">Jawaban Terkirim!</h2>
         <p class="submitted-text">Tunggu hingga waktu habis untuk melihat hasilnya.</p>
         <div class="submitted-dots">
@@ -135,18 +146,18 @@
     <!-- VIEW 5: HASIL FEEDBACK RONDE -->
     <section id="viewResult" class="player-view">
       <div class="result-card" id="resultCard">
-        <div class="result-icon-box" id="resultIcon">🎉</div>
+        <div class="result-icon-box" id="resultIcon"><i data-lucide="check-circle"></i></div>
         <h2 class="result-title" id="resultTitle">Benar!</h2>
         <div class="result-points" id="resultPoints">+950 Poin</div>
         
         <div class="result-stats-box">
           <div class="stat-col">
             <span class="stat-title">Peringkat</span>
-            <span class="stat-val" id="resultRank">#1</span>
+            <span class="stat-val" id="resultRank"><i data-lucide="trophy"></i> #1</span>
           </div>
           <div class="stat-col">
             <span class="stat-title">Streak</span>
-            <span class="stat-val" id="resultStreak">🔥 1</span>
+            <span class="stat-val" id="resultStreak"><i data-lucide="flame"></i> 1</span>
           </div>
         </div>
 
@@ -157,12 +168,22 @@
     <!-- VIEW 6: FINAL PODIUM PLAYER -->
     <section id="viewFinal" class="player-view">
       <div class="final-card">
-        <div class="final-trophy">🏆</div>
+        <div class="final-trophy"><i data-lucide="trophy"></i></div>
         <h1 class="final-title">Kuis Selesai!</h1>
+        <div class="final-avatar-wrapper">
+          <img id="finalAvatarImg" class="final-avatar-img" src="" alt="Avatar" style="display: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <span id="finalAvatarFallback" class="final-avatar-fallback" style="display: none;">?</span>
+        </div>
         <p class="final-rank-tag">Peringkat Akhirmu:</p>
         <div class="final-rank-display" id="finalRankDisplay">#1</div>
         <div class="final-score-display" id="finalScoreDisplay">0 Poin</div>
         <p class="final-sub">Terima kasih telah berpartisipasi di Nizhoot!</p>
+      </div>
+
+      <!-- Podium Top 3 Pemenang di Layar Player -->
+      <div id="playerPodiumSection" class="player-podium-card" style="display: none;">
+        <h3 class="player-podium-title"><i data-lucide="crown"></i> Podium Pemenang</h3>
+        <div class="player-podium-list" id="playerPodiumList"></div>
       </div>
     </section>
   </div>

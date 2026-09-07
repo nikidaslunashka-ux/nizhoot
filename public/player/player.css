@@ -112,7 +112,7 @@ html, body {
    VIEW PANELS
    =================================================== */
 .player-view {
-  display: none;
+  display: none !important;
   flex: 1;
   width: 100%;
   height: calc(100% - 52px);
@@ -122,7 +122,7 @@ html, body {
 }
 
 .player-view.active {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
 }
 
@@ -324,96 +324,129 @@ html, body {
    VIEW 3: GAMEPAD DENGAN SOAL, MEDIA & PILIHAN
    =================================================== */
 #viewGamepad {
+  padding: 0.5rem;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 0.6rem;
-  height: 100%;
+  overflow: hidden;
+  gap: 0;
 }
 
 .gamepad-status-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0.4rem 0.4rem;
-  font-size: 1rem;
+  padding: 0 0.25rem 0.3rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .gamepad-timer {
   color: #FACC15;
   font-variant-numeric: tabular-nums;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
 }
 
-/* Kartu Soal di Player */
+/* Kartu Soal di Player — tinggi menyesuaikan teks, max 3-4 baris */
 .player-question-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 0.8rem 1rem;
-  margin-bottom: 0.6rem;
+  padding: 0.45rem 0.75rem;
+  margin-bottom: 0.3rem;
   text-align: center;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
 }
 
 .player-question-text {
-  font-size: clamp(1rem, 3.5vw, 1.25rem);
+  font-size: clamp(0.82rem, 2.8vw, 1.0rem);
   font-weight: 700;
   color: #FFF;
-  line-height: 1.35;
-}
-
-.player-media-container {
-  margin-top: 0.6rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  max-height: 140px;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
+/* Area Media — ambil SEMUA sisa ruang vertikal yang tersedia */
+.player-media-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: #0a0d18;
+  margin-bottom: 0.3rem;
+}
+
+/* Gambar UTUH tidak ter-crop — contain wajib, bukan cover */
 .player-media-img {
-  max-height: 130px;
-  max-width: 100%;
+  width: 100%;
+  height: 100%;
   border-radius: var(--radius-md);
   object-fit: contain;
+  display: block;
+}
+
+.player-video-wrapper {
+  width: 100%;
+  height: 100%;
 }
 
 .player-video-wrapper iframe,
 .player-video-wrapper video {
   width: 100%;
-  max-height: 130px;
+  height: 100%;
   border-radius: var(--radius-md);
   border: none;
 }
 
-/* 4 Tombol 2x2 Gamepad dengan Teks & Bentuk */
+/* 4 Tombol 2x2 Gamepad — tinggi compact, tidak rakus ambil ruang */
 .gamepad-grid {
-  flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 0.6rem;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  height: clamp(150px, 38vh, 220px);
+}
+
+/* Ketika soal tidak punya gambar/video, grid jawaban mengisi ruang sisa */
+#viewGamepad.no-media .gamepad-grid {
+  flex: 1;
+  height: auto;
+  min-height: clamp(150px, 38vh, 260px);
 }
 
 .gamepad-btn {
   border: none;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 0.8rem 0.9rem;
+  padding: 0.45rem 0.6rem;
+  min-height: 68px;
   cursor: pointer;
   touch-action: manipulation;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
-  transition: transform 0.1s ease, filter 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.1s ease, filter 0.15s;
   color: #FFF;
   text-align: left;
+  overflow: hidden;
+  position: relative;
 }
 
 .gamepad-btn:active {
-  transform: scale(0.94);
+  transform: scale(0.95);
   filter: brightness(1.2);
 }
 
@@ -427,31 +460,47 @@ html, body {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  margin-bottom: 0.15rem;
+  flex-shrink: 0;
+  pointer-events: none;
 }
 
 .opt-letter {
-  font-size: 1.3rem;
+  font-size: 0.85rem;
   font-weight: 900;
-  opacity: 0.85;
+  opacity: 0.8;
+  flex-shrink: 0;
 }
 
 .btn-opt-text {
-  font-size: clamp(0.95rem, 3.2vw, 1.25rem);
+  font-size: clamp(0.78rem, 2.5vw, 0.95rem);
   font-weight: 700;
   line-height: 1.25;
-  margin-top: auto;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+  width: 100%;
+  margin: auto 0;
+  display: block;
 }
 
-/* CSS Clip-Path Simbol Bentuk di HP */
+.btn-opt-text.long-text {
+  font-size: clamp(0.72rem, 2.2vw, 0.84rem);
+  line-height: 1.2;
+}
+
+.btn-opt-text.extra-long-text {
+  font-size: clamp(0.66rem, 1.9vw, 0.76rem);
+  line-height: 1.15;
+}
+
+/* CSS Clip-Path Simbol Bentuk di HP Ringkas (18px) */
 .shape-symbol {
   display: inline-block;
-  width: 28px;
-  height: 28px;
+  width: 18px;
+  height: 18px;
   background-color: #FFFFFF;
+  flex-shrink: 0;
 }
 
 .shape-hexagon {
@@ -669,4 +718,229 @@ html, body {
 .final-sub {
   font-size: 0.95rem;
   color: var(--text-muted);
+}
+
+/* ===================================================
+   LUCIDE ICONS & AVATAR STYLES
+   =================================================== */
+.lucide {
+  width: 1.15em;
+  height: 1.15em;
+  stroke-width: 2.2;
+  vertical-align: -0.16em;
+  display: inline-block;
+}
+
+.btn-join .lucide {
+  margin-right: 0.4rem;
+}
+
+/* Header Avatar */
+.hud-avatar-box {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1.5px solid var(--color-c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.hud-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hud-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #FFF;
+  background: linear-gradient(135deg, var(--color-a), var(--color-b));
+}
+
+/* Waiting Lobby Avatar */
+.waiting-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.waiting-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #FFF;
+  background: linear-gradient(135deg, var(--color-a), var(--color-b));
+}
+
+/* Final View Avatar */
+.final-avatar-wrapper {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  margin: 0 auto 1.5rem;
+  padding: 3px;
+  background: linear-gradient(135deg, var(--color-a), var(--color-c));
+  box-shadow: 0 0 25px rgba(34, 211, 197, 0.4);
+}
+
+.final-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: var(--bg-card);
+}
+
+.final-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #FFF;
+  background: linear-gradient(135deg, var(--color-a), var(--color-b));
+}
+
+/* Player Screen Podium Section */
+.player-podium-card {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.2rem;
+  margin-top: 1.5rem;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.player-podium-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #FACC15;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.player-podium-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.player-podium-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: #0B0F19;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  transition: transform 0.2s;
+}
+
+.player-podium-item.podium-rank-1 {
+  border-color: #FACC15;
+  background: linear-gradient(90deg, rgba(250, 204, 21, 0.12), #0B0F19);
+}
+
+.player-podium-item.podium-rank-2 {
+  border-color: #CBD5E1;
+}
+
+.player-podium-item.podium-rank-3 {
+  border-color: #F59E0B;
+}
+
+.player-podium-item.is-me {
+  box-shadow: 0 0 15px rgba(34, 211, 197, 0.3);
+  border-color: var(--color-c);
+}
+
+.player-podium-medal {
+  font-size: 1.6rem;
+  line-height: 1;
+  width: 32px;
+  text-align: center;
+}
+
+.player-podium-avatar-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.player-podium-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  display: block;
+}
+
+.podium-rank-1 .player-podium-avatar-img {
+  border-color: #FCD34D;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
+}
+
+.player-podium-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #FFF;
+  background: linear-gradient(135deg, var(--color-a), var(--color-b));
+}
+
+.player-podium-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-podium-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #FFF;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-podium-score {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--color-c);
 }
