@@ -239,12 +239,19 @@ socket.on('player:new_question', (data) => {
     gamepadTimer.textContent = `${data.duration}s`;
   }
 
-  // Tampilkan Teks Pertanyaan di HP
+  // Tampilkan Teks Pertanyaan di HP (Auto-scaling berdasarkan panjang teks)
   if (data.question) {
     playerQuestionText.textContent = data.question;
+    playerQuestionText.classList.remove('q-short', 'q-long');
+    const qLen = (data.question || '').trim().length;
+    if (qLen < 50) {
+      playerQuestionText.classList.add('q-short');
+    } else if (qLen > 120) {
+      playerQuestionText.classList.add('q-long');
+    }
   }
 
-  // Tampilkan Teks Pilihan Jawaban di Tombol HP (Auto-wrap & Dynamic Sizing)
+  // Tampilkan Teks Pilihan Jawaban di Tombol HP (Auto-scaling independen per tombol)
   if (data.options) {
     const opts = [
       { el: playerOptA, val: data.options.a || '-' },
@@ -255,12 +262,12 @@ socket.on('player:new_question', (data) => {
 
     opts.forEach(({ el, val }) => {
       el.textContent = val;
-      el.classList.remove('long-text', 'extra-long-text');
+      el.classList.remove('opt-short', 'opt-long', 'long-text', 'extra-long-text');
       const len = (val || '').trim().length;
-      if (len > 55) {
-        el.classList.add('extra-long-text');
-      } else if (len > 28) {
-        el.classList.add('long-text');
+      if (len < 25) {
+        el.classList.add('opt-short');
+      } else if (len > 60) {
+        el.classList.add('opt-long');
       }
     });
   }
