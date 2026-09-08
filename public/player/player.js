@@ -68,6 +68,14 @@ const finalScoreDisplay = document.getElementById('finalScoreDisplay');
 const finalAvatarImg = document.getElementById('finalAvatarImg');
 const finalAvatarFallback = document.getElementById('finalAvatarFallback');
 
+// Reconnect & Submitted Choice Elements
+const reconnectBanner = document.getElementById('reconnectBanner');
+const submittedChoiceBadge = document.getElementById('submittedChoiceBadge');
+const submittedChoicePill = document.getElementById('submittedChoicePill');
+const submittedChoiceShape = document.getElementById('submittedChoiceShape');
+const submittedChoiceLetter = document.getElementById('submittedChoiceLetter');
+const submittedChoiceText = document.getElementById('submittedChoiceText');
+
 function renderLucideIcons() {
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
     window.lucide.createIcons();
@@ -289,6 +297,12 @@ socket.on('player:new_question', (data) => {
     if (viewGamepad) viewGamepad.classList.add('no-media');
   }
 
+  // Reset pilihan terkirim & indikator kepanikan waktu
+  if (submittedChoiceBadge) submittedChoiceBadge.style.display = 'none';
+  if (gamepadTimer) gamepadTimer.classList.remove('timer-panic');
+  if (gamepadTimerSeconds) gamepadTimerSeconds.classList.remove('timer-panic');
+  if (viewGamepad) viewGamepad.classList.remove('urgency-panic');
+
   // Aktifkan kembali 4 tombol jawaban
   gamepadBtns.forEach(btn => {
     btn.disabled = false;
@@ -299,12 +313,21 @@ socket.on('player:new_question', (data) => {
   showScreen('gamepad');
 });
 
-// Update Timer Detik
+// Update Timer Detik & Eskalasi Kepanikan (<5s)
 socket.on('game:timer_tick', ({ secondsRemaining }) => {
-  if (gamepadTimerSeconds) {
-    gamepadTimerSeconds.textContent = `${secondsRemaining}s`;
-  } else if (gamepadTimer) {
-    gamepadTimer.textContent = `${secondsRemaining}s`;
+  const timerDisplay = gamepadTimerSeconds || gamepadTimer;
+  if (timerDisplay) {
+    timerDisplay.textContent = `${secondsRemaining}s`;
+  }
+
+  const timerEl = gamepadTimer || gamepadTimerSeconds;
+  const viewGamepad = document.getElementById('viewGamepad');
+  if (secondsRemaining <= 5 && secondsRemaining > 0) {
+    if (timerEl) timerEl.classList.add('timer-panic');
+    if (viewGamepad) viewGamepad.classList.add('urgency-panic');
+  } else {
+    if (timerEl) timerEl.classList.remove('timer-panic');
+    if (viewGamepad) viewGamepad.classList.remove('urgency-panic');
   }
 });
 
@@ -319,6 +342,28 @@ gamepadBtns.forEach(btn => {
 
     const selectedOption = btn.getAttribute('data-option');
     hasAnsweredCurrentQuestion = true;
+
+    // Tampilkan konfirmasi pilihan yang dipilih di layar Submitted
+    if (submittedChoiceBadge && submittedChoicePill) {
+      const optTextEl = btn.querySelector('.btn-opt-text');
+      const text = optTextEl ? optTextEl.textContent : '';
+      const letter = selectedOption.toUpperCase();
+      const shapeMap = {
+        a: 'shape-hexagon',
+        b: 'shape-chevron',
+        c: 'shape-star',
+        d: 'shape-triangle'
+      };
+
+      submittedChoicePill.className = `choice-pill choice-${selectedOption}`;
+      if (submittedChoiceShape) {
+        submittedChoiceShape.className = `shape-symbol ${shapeMap[selectedOption] || ''}`;
+      }
+      if (submittedChoiceLetter) submittedChoiceLetter.textContent = letter;
+      if (submittedChoiceText) submittedChoiceText.textContent = text;
+      submittedChoiceBadge.style.display = 'flex';
+      renderLucideIcons();
+    }
 
     // Disable tombol seketika
     gamepadBtns.forEach(b => {
@@ -487,3 +532,31 @@ function getYouTubeEmbedUrl(url) {
   }
   return url;
 }
+
+// ==========================================
+// 5. RESILIENCE & RECONNECTION HANDLERS
+// ==========================================
+socket.on('disconnect', (reason) => {
+  console.warn('[Socket] Terputus dari server:', reason);
+  if (reconnectBanner) reconnectBanner.style.display = 'flex';
+  renderLucideIcons();
+});
+
+socket.on('connect_error', (err) => {
+  console.warn('[Socket] Gagal terhubung:', err.message);
+  if (reconnectBanner) reconnectBanner.style.display = 'flex';
+  renderLucideIcons();
+});
+
+socket.on('connect', () => {
+  console.log('[Socket] Terhubung ke server');
+  if (reconnectBanner) reconnectBanner.style.display = 'none';
+
+  // Otomatis bergabung kembali jika pemain sudah berada dalam sesi aktif
+  if (myPin && myNickname) {
+    socket.emit('player:join_room', {
+      pin: myPin,
+      nickname: myNickname
+    });
+  }
+});

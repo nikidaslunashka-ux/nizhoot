@@ -40,12 +40,35 @@ function getLocalIpAddress() {
 }
 
 /**
- * Dapatkan Base URL yang valid untuk device lain (HP) di jaringan
+ * Dapatkan Base URL yang valid untuk device lain (HP / browser peserta).
+ * Prioritas:
+ * 1. BASE_URL (manual override di env var untuk custom domain / platform lain)
+ * 2. RENDER_EXTERNAL_URL (otomatis disediakan oleh Render, misal https://nizhoot.onrender.com)
+ * 3. Header Host dari request/socket jika di environment production / cloud
+ * 4. Fallback ke IP lokal jaringan mesin untuk local development (http://10.x.x.x:PORT)
  */
-function getBaseUrl(req) {
+function getBaseUrl(context) {
   if (process.env.BASE_URL) {
-    return process.env.BASE_URL.replace(/\/$/, '');
+    return process.env.BASE_URL.trim().replace(/\/$/, '');
   }
+
+  if (process.env.RENDER_EXTERNAL_URL) {
+    return process.env.RENDER_EXTERNAL_URL.trim().replace(/\/$/, '');
+  }
+
+  // Jika berjalan di production / cloud tapi belum set BASE_URL manual
+  const isProduction = !!process.env.RENDER || process.env.NODE_ENV === 'production';
+  if (isProduction && context) {
+    const headers = context.headers || (context.handshake && context.handshake.headers);
+    if (headers) {
+      const host = headers['x-forwarded-host'] || headers['host'];
+      const proto = headers['x-forwarded-proto'] || (context.protocol) || 'https';
+      if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+        return `${proto}://${host}`.replace(/\/$/, '');
+      }
+    }
+  }
+
   const localIp = getLocalIpAddress();
   return `http://${localIp}:${PORT}`;
 }
@@ -413,8 +436,8 @@ io.on('connection', (socket) => {
       const room = gameState.createRoom(pin, selectedSet, questions, socket.id);
       socket.join(`room_${pin}`);
 
-      // URL join akurat menggunakan IP lokal jaringan (BUKAN localhost)
-      const baseUrl = getBaseUrl();
+      // URL join akurat menggunakan Base URL production atau IP lokal jaringan
+      const baseUrl = getBaseUrl(socket);
       const playerJoinUrl = `${baseUrl}/player?pin=${pin}`;
 
       // Generate QR Code mengarah ke URL IP lokal
@@ -719,13 +742,23 @@ function triggerFinalPodium(pin) {
 }
 
 // Start Server
-server.listen(PORT, () => {
-  const localIp = getLocalIpAddress();
-  console.log(`====================================================`);
-  console.log(`🚀 Nizhoot Server aktif!`);
-  console.log(`🌐 Local Network URL:       http://${localIp}:${PORT}`);
-  console.log(`📺 Layar Host (Proyektor):  http://localhost:${PORT}/host`);
-  console.log(`📱 Layar Player (HP):       http://${localIp}:${PORT}/player`);
-  console.log(`🛠️  Layar Admin (Sheets API): http://localhost:${PORT}/admin`);
-  console.log(`====================================================`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    const isProduction = !!process.env.RENDER || !!process.env.RENDER_EXTERNAL_URL || process.env.NODE_ENV === 'production';
+    const baseUrl = getBaseUrl();
+    console.log(`====================================================`);
+    console.log(`🚀 Nizhoot Server aktif! (${isProduction ? 'Cloud / Production' : 'Local / Development'})`);
+    console.log(`🌐 Base URL:                 ${baseUrl}`);
+    console.log(`📺 Layar Host (Proyektor):  ${baseUrl}/host`);
+    console.log(`📱 Layar Player (HP):       ${baseUrl}/player`);
+    console.log(`🛠️  Layar Admin (Sheets API): ${baseUrl}/admin`);
+    console.log(`====================================================`);
+  });
+}
+
+module.exports = {
+  app,
+  server,
+  getBaseUrl,
+  getLocalIpAddress
+};

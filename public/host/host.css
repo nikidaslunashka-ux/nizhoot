@@ -786,10 +786,14 @@ input:checked + .slider:before {
   transition: transform 0.2s, filter 0.3s;
 }
 
-.card-a { background-color: var(--color-a); }
-.card-b { background-color: var(--color-b); }
-.card-c { background-color: var(--color-c); }
-.card-d { background-color: var(--color-d); }
+.card-a { background-color: var(--color-a); color: #FFF; }
+.card-b { background-color: var(--color-b); color: #FFF; }
+.card-c { background-color: var(--color-c); color: #0B0F19; }
+.card-d { background-color: var(--color-d); color: #0B0F19; }
+
+.card-c .answer-label, .card-d .answer-label { color: #0B0F19; opacity: 0.95; }
+.card-c .answer-text, .card-d .answer-text { color: #0B0F19; }
+.card-c .shape-icon, .card-d .shape-icon { background-color: #0B0F19; }
 
 .answer-card .answer-label {
   font-size: 1.6rem;
@@ -1455,3 +1459,16 @@ input:checked + .slider:before {
   bottom: -6px;
   right: -6px;
 }
+
+/* ===================================================
+   ACCESSIBILITY: PREFERS-REDUCED-MOTION
+   =================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

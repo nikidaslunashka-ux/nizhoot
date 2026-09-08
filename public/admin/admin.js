@@ -123,6 +123,13 @@ modalCreateSet.addEventListener('click', (e) => {
   if (e.target === modalCreateSet) closeModal();
 });
 
+// Keyboard Escape untuk menutup modal secara aksesibel
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && modalCreateSet.classList.contains('active')) {
+    closeModal();
+  }
+});
+
 formCreateSetModal.addEventListener('submit', (e) => {
   e.preventDefault();
   const setName = inputModalSetName.value.trim();

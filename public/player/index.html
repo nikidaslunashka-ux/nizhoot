@@ -2,18 +2,19 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nizhoot — Player Controller</title>
   <link rel="icon" type="image/png" href="/assets/images/nizhoot-logo.png">
   <link rel="stylesheet" href="/player/player.css">
   <script src="/shared/lucide.js"></script>
-  <script>
-    if (typeof lucide === 'undefined') {
-      document.write('<script src="https://unpkg.com/lucide@1.41.0/dist/umd/lucide.js"><\/script>');
-    }
-  </script>
 </head>
 <body>
+  <!-- RECONNECTING / OFFLINE BANNER -->
+  <div id="reconnectBanner" class="reconnect-banner" style="display: none;">
+    <i data-lucide="wifi-off"></i>
+    <span>Koneksi terputus. Mencoba menyambung kembali...</span>
+  </div>
+
   <div class="player-container">
     <!-- TOP BAR PLAYER -->
     <header class="player-header">
@@ -23,7 +24,7 @@
       </div>
       <div class="player-meta" id="playerMeta" style="display: none;">
         <div class="hud-avatar-box">
-          <img id="hudAvatarImg" class="hud-avatar-img" src="" alt="Avatar" style="display: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <img id="hudAvatarImg" class="hud-avatar-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Avatar" style="display: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
           <span id="hudAvatarFallback" class="hud-avatar-fallback" style="display: none;">-</span>
         </div>
         <span class="player-name-badge" id="hudNickname">-</span>
@@ -64,7 +65,7 @@
     <section id="viewLobby" class="player-view">
       <div class="lobby-waiting-card">
         <div class="avatar-ring">
-          <img id="waitingAvatarImg" class="waiting-avatar-img" src="" alt="Avatar" style="display: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <img id="waitingAvatarImg" class="waiting-avatar-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Avatar" style="display: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
           <span id="waitingAvatarFallback" class="waiting-avatar-fallback" style="display: none;">?</span>
         </div>
         <h2 class="waiting-name" id="waitingNickname">Pemain</h2>
@@ -134,9 +135,20 @@
     <!-- VIEW 4: MENUNGGU WAKTU HABIS SETELAH MENJAWAB -->
     <section id="viewSubmitted" class="player-view">
       <div class="submitted-card">
-        <div class="submitted-icon"><i data-lucide="hourglass"></i></div>
+        <div class="submitted-icon"><i data-lucide="check-circle"></i></div>
         <h2 class="submitted-title">Jawaban Terkirim!</h2>
-        <p class="submitted-text">Tunggu hingga waktu habis untuk melihat hasilnya.</p>
+        
+        <!-- Penegas Pilihan yang Dipilih Pemain -->
+        <div id="submittedChoiceBadge" class="submitted-choice-badge" style="display: none;">
+          <span class="choice-label">Pilihanmu:</span>
+          <div class="choice-pill" id="submittedChoicePill">
+            <span class="shape-symbol" id="submittedChoiceShape"></span>
+            <span class="choice-letter" id="submittedChoiceLetter">A</span>
+            <span class="choice-text" id="submittedChoiceText">Teks Pilihan</span>
+          </div>
+        </div>
+
+        <p class="submitted-text">Tunggu hingga waktu habis untuk melihat pembahasan & skor.</p>
         <div class="submitted-dots">
           <span></span><span></span><span></span>
         </div>
@@ -171,7 +183,7 @@
         <div class="final-trophy"><i data-lucide="trophy"></i></div>
         <h1 class="final-title">Kuis Selesai!</h1>
         <div class="final-avatar-wrapper">
-          <img id="finalAvatarImg" class="final-avatar-img" src="" alt="Avatar" style="display: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <img id="finalAvatarImg" class="final-avatar-img" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E" alt="Avatar" style="display: none;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
           <span id="finalAvatarFallback" class="final-avatar-fallback" style="display: none;">?</span>
         </div>
         <p class="final-rank-tag">Peringkat Akhirmu:</p>

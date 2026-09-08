@@ -272,6 +272,13 @@ if (btnEndSession && modalConfirmEndSession) {
       }
     });
   }
+
+  // Keyboard Escape untuk menutup modal secara aksesibel
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalConfirmEndSession.classList.contains('active')) {
+      modalConfirmEndSession.classList.remove('active');
+    }
+  });
 }
 
 // ==========================================
