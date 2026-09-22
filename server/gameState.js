@@ -40,6 +40,7 @@ class GameStateManager {
       autoplay: false,
       skipWhenAllAnswered: false,
       answerCounts: { a: 0, b: 0, c: 0, d: 0 },
+      roundHistories: [],
       createdAt: Date.now()
     };
 
@@ -110,8 +111,10 @@ class GameStateManager {
       streak: 0,
       currentAnswer: null, // 'a' | 'b' | 'c' | 'd'
       answeredAt: 0,
+      currentResponseTime: 0,
       lastPointsEarned: 0,
-      lastAnswerCorrect: false
+      lastAnswerCorrect: false,
+      answersHistory: []
     };
 
     room.players.set(socketId, player);
@@ -236,6 +239,7 @@ class GameStateManager {
 
     player.currentAnswer = cleanOption;
     player.answeredAt = now;
+    player.currentResponseTime = Number(timeElapsedSeconds.toFixed(2));
 
     // Tambah counter agregat jawaban
     if (room.answerCounts[cleanOption] !== undefined) {
@@ -295,6 +299,60 @@ class GameStateManager {
 
     room.state = 'ROUND_SUMMARY';
     const currentQ = room.questions[room.currentQuestionIndex];
+
+    // Simpan riwayat jawaban tiap pemain untuk nomor ini
+    for (const p of room.players.values()) {
+      const answered = !!p.currentAnswer;
+      p.answersHistory.push({
+        questionIndex: room.currentQuestionIndex,
+        questionText: currentQ.question,
+        selectedOption: answered ? p.currentAnswer.toUpperCase() : '-',
+        isCorrect: answered ? p.lastAnswerCorrect : false,
+        pointsEarned: answered ? p.lastPointsEarned : 0,
+        responseTimeSeconds: answered ? (p.currentResponseTime || 0) : room.questionDuration
+      });
+    }
+
+    // Hitung statistik dan analisis butir soal
+    const totalParticipants = room.players.size;
+    let correctCount = 0;
+    let totalResponseTime = 0;
+    for (const p of room.players.values()) {
+      if (p.lastAnswerCorrect) correctCount++;
+      totalResponseTime += (p.currentAnswer ? (p.currentResponseTime || 0) : room.questionDuration);
+    }
+    const accuracyPercentage = totalParticipants > 0 ? Math.round((correctCount / totalParticipants) * 100) : 0;
+    const avgResponseTime = totalParticipants > 0 ? Number((totalResponseTime / totalParticipants).toFixed(2)) : 0;
+
+    // Cari opsi salah yang paling banyak dipilih (distraktor terkuat)
+    const wrongCounts = { ...room.answerCounts };
+    delete wrongCounts[currentQ.correct_answer.toLowerCase()];
+    let topDistractor = '-';
+    let maxDistractorCount = 0;
+    for (const [opt, count] of Object.entries(wrongCounts)) {
+      if (count > maxDistractorCount) {
+        maxDistractorCount = count;
+        topDistractor = opt.toUpperCase();
+      }
+    }
+
+    let difficulty = 'Sedang';
+    if (accuracyPercentage >= 75) difficulty = 'Mudah';
+    else if (accuracyPercentage < 50) difficulty = 'Sulit';
+
+    room.roundHistories.push({
+      questionIndex: room.currentQuestionIndex,
+      questionText: currentQ.question,
+      correctAnswer: currentQ.correct_answer.toUpperCase(),
+      answerCounts: { ...room.answerCounts },
+      totalParticipants,
+      correctCount,
+      wrongCount: totalParticipants - correctCount,
+      accuracyPercentage,
+      averageResponseTimeSeconds: avgResponseTime,
+      topDistractor: maxDistractorCount > 0 ? topDistractor : '-',
+      difficulty
+    });
 
     // Simpan rank sebelumnya lalu urutkan pemain berdasarkan skor
     const playerList = Array.from(room.players.values());
@@ -398,6 +456,110 @@ class GameStateManager {
     }
 
     return this.getFinalPodium(pin);
+  }
+
+  /**
+   * Mengambil data terstruktur lengkap untuk laporan analisis & ekspor Excel
+   */
+  getSessionReportData(pin) {
+    const room = this.rooms.get(pin);
+    if (!room) return null;
+
+    const playerList = Array.from(room.players.values());
+    playerList.sort((a, b) => b.score - a.score);
+
+    const totalQuestions = room.questions.length;
+    const totalParticipants = playerList.length;
+
+    // Hitung rata-rata skor
+    const totalScores = playerList.reduce((sum, p) => sum + p.score, 0);
+    const averageScore = totalParticipants > 0 ? Math.round(totalScores / totalParticipants) : 0;
+
+    // Hitung rata-rata akurasi keseluruhan
+    const completedRounds = room.roundHistories.length;
+    const totalAnswersCount = room.roundHistories.reduce((sum, r) => sum + r.totalParticipants, 0);
+    const totalCorrectCount = room.roundHistories.reduce((sum, r) => sum + r.correctCount, 0);
+    const overallAccuracy = totalAnswersCount > 0 ? Math.round((totalCorrectCount / totalAnswersCount) * 100) : 0;
+
+    // Hitung rata-rata waktu respons keseluruhan
+    const totalTimeSum = room.roundHistories.reduce((sum, r) => sum + r.averageResponseTimeSeconds, 0);
+    const averageTimeOverall = completedRounds > 0 ? Number((totalTimeSum / completedRounds).toFixed(2)) : 0;
+
+    // Soal tersulit & paling lambat dijawab
+    let hardestQuestion = null;
+    let slowestQuestion = null;
+    let lowestAccuracy = 101;
+    let maxTime = -1;
+
+    room.roundHistories.forEach(r => {
+      if (r.accuracyPercentage < lowestAccuracy) {
+        lowestAccuracy = r.accuracyPercentage;
+        hardestQuestion = {
+          number: r.questionIndex + 1,
+          question: r.questionText,
+          accuracy: r.accuracyPercentage,
+          correctAnswer: r.correctAnswer
+        };
+      }
+      if (r.averageResponseTimeSeconds > maxTime) {
+        maxTime = r.averageResponseTimeSeconds;
+        slowestQuestion = {
+          number: r.questionIndex + 1,
+          question: r.questionText,
+          duration: r.averageResponseTimeSeconds
+        };
+      }
+    });
+
+    // Evaluasi dan klasifikasi per peserta
+    const evaluatedPlayers = playerList.map((p, idx) => {
+      const correct = p.totalCorrect || 0;
+      const accuracy = totalQuestions > 0 ? Math.round((correct / totalQuestions) * 100) : 0;
+
+      let totalPTime = 0;
+      const history = p.answersHistory || [];
+      history.forEach(ans => {
+        totalPTime += (ans.responseTimeSeconds || 0);
+      });
+      const avgPTime = history.length > 0 ? Number((totalPTime / history.length).toFixed(2)) : 0;
+
+      let mastery = 'Perlu Remedial';
+      if (accuracy >= 80) mastery = 'Sangat Paham';
+      else if (accuracy >= 50) mastery = 'Cukup Paham';
+
+      return {
+        rank: idx + 1,
+        id: p.id,
+        nickname: p.nickname,
+        avatar: p.avatar,
+        score: p.score,
+        totalCorrect: correct,
+        totalWrong: Math.max(0, totalQuestions - correct),
+        accuracy,
+        averageResponseTime: avgPTime,
+        mastery,
+        answers: history
+      };
+    });
+
+    return {
+      pin: room.pin,
+      quizSet: room.quizSet,
+      createdAt: room.createdAt,
+      state: room.state,
+      totalQuestions,
+      completedQuestions: completedRounds,
+      totalParticipants,
+      overview: {
+        averageScore,
+        overallAccuracy,
+        averageResponseTime: averageTimeOverall,
+        hardestQuestion: hardestQuestion || { number: '-', question: '-', accuracy: 0, correctAnswer: '-' },
+        slowestQuestion: slowestQuestion || { number: '-', question: '-', duration: 0 }
+      },
+      questionsAnalysis: room.roundHistories,
+      players: evaluatedPlayers
+    };
   }
 }
 

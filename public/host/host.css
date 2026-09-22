@@ -1135,8 +1135,89 @@ input:checked + .slider:before {
   border: 2px solid #FBBF24;
 }
 
-.podium-actions {
+.podium-insights-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
   z-index: 20;
+  flex-wrap: wrap;
+}
+
+.insight-badge {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.insight-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.insight-value {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #FFF;
+  font-variant-numeric: tabular-nums;
+}
+
+.insight-value.highlight-cyan {
+  color: var(--color-c);
+}
+
+.insight-value.highlight-amber {
+  color: #FACC15;
+}
+
+.podium-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2rem;
+  z-index: 20;
+  flex-wrap: wrap;
+}
+
+.btn-download-report {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: linear-gradient(135deg, #059669, #10B981);
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 1.15rem;
+  font-weight: 800;
+  padding: 0.9rem 1.8rem;
+  border-radius: var(--radius-lg);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.btn-download-report:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(16, 185, 129, 0.5);
+  filter: brightness(1.1);
+}
+
+.btn-download-report:active {
+  transform: translateY(0);
 }
 
 /* ===================================================

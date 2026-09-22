@@ -12,6 +12,7 @@ const multer = require('multer');
 const { loadQuestions, appendQuestionToSheet, updateQuestionRow, deleteQuestionRow, deleteQuizSetRows } = require('./sheetsLoader');
 const driveService = require('./driveService');
 const gameState = require('./gameState');
+const excelReportService = require('./excelReportService');
 
 const app = express();
 const server = http.createServer(app);
@@ -272,6 +273,63 @@ app.get('/api/media-proxy', async (req, res) => {
     console.error('[MediaProxy] Error:', err.message);
     res.status(500).send('Terjadi kesalahan internal proxy media.');
   }
+});
+
+// ==========================================
+// API: ANALYTICS & EXPORT LAPORAN EXCEL (.xlsx)
+// ==========================================
+const recentSessionReports = new Map();
+
+// API: Ambil Data Ringkasan Analisis Sesi Kuis (JSON)
+app.get('/api/session/:pin/analytics', (req, res) => {
+  const pin = req.params.pin;
+  const reportData = gameState.getSessionReportData(pin) || recentSessionReports.get(pin);
+  if (!reportData) {
+    return res.status(404).json({ success: false, error: `Sesi kuis dengan PIN ${pin} tidak ditemukan.` });
+  }
+  recentSessionReports.set(pin, reportData);
+  res.json({ success: true, report: reportData });
+});
+
+// API: Unduh Laporan Excel (.xlsx) Kuis Komprehensif 3-Sheet
+app.get('/api/session/:pin/export-excel', async (req, res) => {
+  try {
+    const pin = req.params.pin;
+    const reportData = gameState.getSessionReportData(pin) || recentSessionReports.get(pin);
+    if (!reportData) {
+      return res.status(404).send(`Sesi kuis dengan PIN ${pin} tidak ditemukan atau belum memiliki data jawaban.`);
+    }
+
+    recentSessionReports.set(pin, reportData);
+    const excelBuffer = await excelReportService.generateSessionExcel(reportData);
+
+    const safeSetName = (reportData.quizSet || 'Quiz').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    const filename = `Laporan_Nizhoot_${safeSetName}_${pin}_${dateStamp}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', excelBuffer.length);
+    res.send(excelBuffer);
+  } catch (err) {
+    console.error('[ExportExcelAPI] Gagal membuat laporan Excel:', err);
+    res.status(500).send(`Gagal membuat file laporan Excel: ${err.message}`);
+  }
+});
+
+// API: Daftar Sesi Kuis yang Dapat Diunduh
+app.get('/api/session/reports', (req, res) => {
+  const activeRooms = Array.from(gameState.rooms.keys()).map(pin => {
+    const data = gameState.getSessionReportData(pin);
+    return {
+      pin,
+      quizSet: data.quizSet,
+      totalParticipants: data.totalParticipants,
+      state: data.state,
+      createdAt: data.createdAt
+    };
+  });
+  res.json({ success: true, sessions: activeRooms });
 });
 
 // API: Tambah Soal Baru ke Google Spreadsheet via Sheets API

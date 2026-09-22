@@ -822,13 +822,59 @@ function escapeHtml(str) {
 
 btnRefreshList.addEventListener('click', () => loadData(true));
 
-// Inisialisasi pemanggilan data kuis
+// ==========================================
+// SESI KUIS & LAPORAN EXCEL
+// ==========================================
+const btnRefreshReports = document.getElementById('btnRefreshReports');
+if (btnRefreshReports) {
+  btnRefreshReports.addEventListener('click', loadSessionReports);
+}
+
+async function loadSessionReports() {
+  const sessionReportsList = document.getElementById('sessionReportsList');
+  if (!sessionReportsList) return;
+
+  try {
+    const res = await fetch('/api/session/reports');
+    const data = await res.json();
+    if (!data.success || !data.sessions || data.sessions.length === 0) {
+      sessionReportsList.innerHTML = '<p style="color: var(--muted); font-size: 0.9rem;">Belum ada sesi kuis yang aktif atau tersimpan pada memori server.</p>';
+      return;
+    }
+
+    sessionReportsList.innerHTML = data.sessions.map(s => {
+      const dateStr = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('id-ID') : '-';
+      return `
+        <div class="session-report-card">
+          <div class="session-info-left">
+            <span class="session-pin-badge">PIN ${s.pin}</span>
+            <div>
+              <div class="session-name">${escapeHtml(s.quizSet || 'Paket Kuis')}</div>
+              <div class="session-meta-sub">${s.totalParticipants || 0} Peserta • Status: ${s.state} • Dibuat: ${dateStr}</div>
+            </div>
+          </div>
+          <a href="/api/session/${s.pin}/export-excel" class="btn-download-excel" target="_blank">
+            <i data-lucide="file-spreadsheet"></i> Unduh Laporan Excel
+          </a>
+        </div>
+      `;
+    }).join('');
+
+    renderLucideIcons();
+  } catch (err) {
+    sessionReportsList.innerHTML = `<p style="color: #F87171; font-size: 0.85rem;">Gagal memuat daftar sesi: ${err.message}</p>`;
+  }
+}
+
+// Inisialisasi pemanggilan data kuis & sesi
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     renderLucideIcons();
     loadData(false);
+    loadSessionReports();
   });
 } else {
   renderLucideIcons();
   loadData(false);
+  loadSessionReports();
 }

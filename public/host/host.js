@@ -538,6 +538,39 @@ socket.on('game:final_podium', (data) => {
   }
   updatePodiumSlot('podium3AvatarBox', p.third, '🥉');
 
+  // Pasang tombol unduh laporan Excel (.xlsx) & muat ringkasan analitik
+  const btnDownloadReport = document.getElementById('btnDownloadReport');
+  const podiumInsightsStrip = document.getElementById('podiumInsightsStrip');
+  const insightAccuracy = document.getElementById('insightAccuracy');
+  const insightHardest = document.getElementById('insightHardest');
+  const insightAvgTime = document.getElementById('insightAvgTime');
+
+  if (btnDownloadReport && currentPin) {
+    btnDownloadReport.href = `/api/session/${currentPin}/export-excel`;
+    btnDownloadReport.style.display = 'inline-flex';
+  }
+
+  if (currentPin) {
+    fetch(`/api/session/${currentPin}/analytics`)
+      .then(res => res.json())
+      .then(resData => {
+        if (resData.success && resData.report && resData.report.overview) {
+          const ov = resData.report.overview;
+          if (insightAccuracy) insightAccuracy.textContent = `${ov.overallAccuracy}%`;
+          if (insightHardest) {
+            const h = ov.hardestQuestion;
+            insightHardest.textContent = (h && h.number !== '-') 
+              ? `Soal #${h.number} (${h.accuracy}%)` 
+              : 'Semua Terjawab';
+          }
+          if (insightAvgTime) insightAvgTime.textContent = `${ov.averageResponseTime}s`;
+          if (podiumInsightsStrip) podiumInsightsStrip.style.display = 'flex';
+          renderLucideIcons();
+        }
+      })
+      .catch(err => console.warn('[HostAnalytics] Gagal memuat ringkasan:', err));
+  }
+
   renderLucideIcons();
   startConfetti();
 });

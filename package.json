@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node test/verify.js && node test/test_avatar_lucide.js && node test/test_edit_question.js && node test/test_production_qr.js"
+    "test": "node test/verify.js && node test/test_avatar_lucide.js && node test/test_edit_question.js && node test/test_production_qr.js && node test/test_excel_export.js"
   },
   "author": "",
   "license": "ISC",
@@ -18,6 +18,7 @@
     "multer": "^2.3.0",
     "papaparse": "^5.7.0",
     "qrcode": "^1.5.4",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "exceljs": "^4.4.0"
   }
 }

@@ -295,7 +295,26 @@
         </div>
       </div>
 
+      <!-- Quick Insights Analisis Sesi -->
+      <div class="podium-insights-strip" id="podiumInsightsStrip" style="display: none;">
+        <div class="insight-badge">
+          <span class="insight-label"><i data-lucide="target"></i> Akurasi Sesi</span>
+          <span class="insight-value highlight-cyan" id="insightAccuracy">0%</span>
+        </div>
+        <div class="insight-badge">
+          <span class="insight-label"><i data-lucide="alert-circle"></i> Soal Tersulit</span>
+          <span class="insight-value highlight-amber" id="insightHardest">Soal #1</span>
+        </div>
+        <div class="insight-badge">
+          <span class="insight-label"><i data-lucide="clock"></i> Rata-rata Waktu Jawab</span>
+          <span class="insight-value" id="insightAvgTime">0s</span>
+        </div>
+      </div>
+
       <div class="podium-actions">
+        <a id="btnDownloadReport" class="btn-download-report" href="#" target="_blank" style="display: none;">
+          <i data-lucide="file-spreadsheet"></i> Unduh Laporan Excel (.xlsx)
+        </a>
         <button id="btnRestartQuiz" class="btn-primary-large">
           <i data-lucide="refresh-cw"></i> Buat Sesi Baru
         </button>

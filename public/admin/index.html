@@ -587,6 +587,66 @@
       color: #FFF;
     }
 
+    /* SESSION REPORTS */
+    .session-reports-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .session-report-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .session-info-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .session-pin-badge {
+      background: #0B0F19;
+      border: 1px solid var(--border);
+      color: #FACC15;
+      font-weight: 800;
+      font-size: 1.1rem;
+      padding: 4px 12px;
+      border-radius: 6px;
+      letter-spacing: 0.05em;
+    }
+    .session-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #FFF;
+    }
+    .session-meta-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .btn-download-excel {
+      background: linear-gradient(135deg, #059669, #10B981);
+      color: #FFFFFF;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.2s;
+    }
+    .btn-download-excel:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+
     /* MODAL BUAT SET BARU */
     .modal-overlay {
       position: fixed;
@@ -684,6 +744,23 @@
     <!-- Container Grid Kartu Quiz Set -->
     <div id="quizSetsGrid" class="cards-grid">
       <p style="color: var(--muted); grid-column: 1 / -1;">Memuat daftar paket kuis...</p>
+    </div>
+
+    <!-- Section Unduh Laporan Sesi Kuis -->
+    <div class="session-reports-section" style="margin-top: 2.5rem;">
+      <div class="action-bar" style="margin-bottom: 1rem;">
+        <div>
+          <h2 class="section-title"><i data-lucide="file-spreadsheet"></i> Laporan & Analisis Sesi Kuis</h2>
+          <p class="section-subtitle">Unduh rekapitulasi data jawaban peserta, analisis butir soal, dan matriks pemahaman.</p>
+        </div>
+        <button type="button" id="btnRefreshReports" class="btn-secondary">
+          <i data-lucide="refresh-cw"></i> Refresh Sesi
+        </button>
+      </div>
+
+      <div id="sessionReportsList" class="session-reports-list">
+        <p style="color: var(--muted);">Belum ada sesi kuis yang sedang aktif atau tercatat.</p>
+      </div>
     </div>
   </main>
 
