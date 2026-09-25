@@ -281,6 +281,8 @@ function convertDriveUrl(url, type = 'image') {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
   if (!trimmed) return '';
+  // User-supplied media is later rendered as links; allow web URLs only.
+  try { if (!['https:', 'http:'].includes(new URL(trimmed).protocol)) return ''; } catch { return ''; }
 
   const fileId = extractDriveFileId(trimmed);
   if (fileId && (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com'))) {

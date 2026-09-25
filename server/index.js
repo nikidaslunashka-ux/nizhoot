@@ -4,15 +4,15 @@ const http = require('http');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
-const cors = require('cors');
 const { Server } = require('socket.io');
 const QRCode = require('qrcode');
 const multer = require('multer');
 
-const { loadQuestions, appendQuestionToSheet, updateQuestionRow, deleteQuestionRow, deleteQuizSetRows } = require('./sheetsLoader');
+const { loadQuestions, loadQuestionsForWrite, appendQuestionToSheet, updateQuestionRow, deleteQuestionRow, deleteQuizSetRows } = require('./sheetsLoader');
 const driveService = require('./driveService');
 const gameState = require('./gameState');
 const excelReportService = require('./excelReportService');
+const auth = require('./auth').createAuth();
 
 const app = express();
 const server = http.createServer(app);
@@ -75,9 +75,57 @@ function getBaseUrl(context) {
 }
 
 // Middleware
-app.use(cors());
+if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+auth.install(app);
+app.use(['/admin', '/host', '/accounts'], auth.wrap(async (req, res, next) => {
+  const user = await auth.identify(req);
+  if (!user || user.status !== 'active' || user.must_change_password === 'true') return res.redirect('/auth/');
+  if (req.baseUrl === '/accounts' && user.role !== 'super_admin') return res.status(403).send('Halaman ini hanya untuk super admin.');
+  res.set('Cache-Control', 'no-store');
+  next();
+}));
+app.use(['/api/admin', '/api/upload', '/api/quiz-sets', '/api/session', '/api/qr'], auth.active);
+// Serialize question mutations, including fresh row authorization, before rows can shift.
+let mutationTail = Promise.resolve();
+app.use('/api/admin', (req, res, next) => {
+  if (!['POST', 'PUT', 'DELETE'].includes(req.method)) return next();
+  const previous = mutationTail;
+  mutationTail = new Promise(resolve => { res.once('finish', resolve); res.once('close', resolve); });
+  previous.then(() => { if (!res.destroyed) next(); });
+});
+const authorizeQuestion = auth.wrap(async (req, res, next) => {
+  if (!/^[1-9]\d*$/.test(req.params.rowNumber) || !Number.isSafeInteger(Number(req.params.rowNumber)) || Number(req.params.rowNumber) < 2) return res.status(400).json({ success: false, error: 'Nomor baris tidak valid.' });
+  req.questionData = await loadQuestionsForWrite();
+  const question = Object.values(req.questionData.sets).flat().find(q => q.sheetRowIndex === Number(req.params.rowNumber));
+  if (!question) return res.status(404).json({ success: false, error: 'Soal tidak ditemukan. Muat ulang daftar.' });
+  if (!(await auth.canAccess(req.user, question.quiz_set))) return res.status(403).json({ success: false, error: 'Anda tidak memiliki akses ke soal ini.' });
+  req.authorizedQuestion = question;
+  next();
+});
+const authorizeDestination = auth.wrap(async (req, res, next) => {
+  const data = req.questionData || await loadQuestionsForWrite();
+  const name = String(req.body.quiz_set || 'Default').trim();
+  await auth.ensureAccess(req.user, name, data.setNames);
+  next();
+});
+// Use exactly the same Express routes and decoded parameters as the handlers.
+app.post('/api/admin/questions', authorizeDestination);
+app.put('/api/admin/questions/:rowNumber', authorizeQuestion, authorizeDestination);
+app.delete('/api/admin/questions/:rowNumber', authorizeQuestion);
+app.delete('/api/admin/quiz-sets/:setName', auth.wrap(async (req, res, next) => {
+  if (!(await auth.canAccess(req.user, req.params.setName, true))) return res.status(403).json({ success: false, error: 'Hanya pemilik atau super admin yang dapat menghapus kuis.' });
+  req.questionData = await loadQuestionsForWrite();
+  next();
+}));
+app.use('/api/session', auth.wrap(async (req, res, next) => {
+  if (req.path === '/reports') return next();
+  const pin = req.path.split('/')[1];
+  const owner = reportOwners.get(pin);
+  if (req.user.role !== 'super_admin' && owner !== req.user.id) return res.status(403).json({ success: false, error: 'Laporan ini bukan milik Anda.' });
+  next();
+}));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Konfigurasi Multer untuk Upload Media ke Memory (Buffer Google Drive)
@@ -108,6 +156,21 @@ async function getCachedQuestions(forceRefresh = false) {
     lastCacheTime = now;
   }
   return questionsCache;
+}
+auth.questionNames = async () => (await getCachedQuestions()).setNames;
+async function cleanupUploadedMedia(removed, remaining) {
+  try {
+    const uploads = await auth.store.all('MediaUploadsV2');
+    const candidates = new Set();
+    for (const question of removed) for (const url of [question.image_url, question.video_url]) {
+      const id = driveService.extractDriveFileId(url || '');
+      if (id && uploads.some(m => m.file_id === id && m.quiz_set === question.quiz_set)) candidates.add(id);
+    }
+    for (const id of candidates) {
+      if (remaining.some(q => [q.image_url, q.video_url].some(url => driveService.extractDriveFileId(url || '') === id))) continue;
+      await driveService.deleteDriveFile(id);
+    }
+  } catch (error) { console.warn('[Media] Pembersihan ditunda; soal sudah dihapus.'); }
 }
 
 // Routes View
@@ -140,7 +203,14 @@ app.get('/api/network-info', (req, res) => {
 app.get('/api/quiz-sets', async (req, res) => {
   try {
     const refresh = req.query.refresh === 'true';
-    const data = await getCachedQuestions(refresh);
+    const loaded = await getCachedQuestions(refresh);
+    const records = (await auth.store.all('QuizAccessV2')).filter(r => r.quiz_set);
+    const accounts = await auth.store.all('AccountsV2');
+    const original = { ...loaded, setNames: [...new Set([...loaded.setNames, ...records.map(r => r.quiz_set)])], sets: { ...loaded.sets } };
+    for (const name of original.setNames) original.sets[name] ||= [];
+    const allowed = await Promise.all(original.setNames.map(async name => (await auth.canAccess(req.user, name)) ? name : null));
+    const setNames = allowed.filter(Boolean);
+    const data = { ...original, setNames, sets: Object.fromEntries(setNames.map(name => [name, original.sets[name]])), totalCount: setNames.reduce((n, name) => n + original.sets[name].length, 0) };
     res.json({
       success: true,
       source: data.source,
@@ -148,9 +218,15 @@ app.get('/api/quiz-sets', async (req, res) => {
       totalQuestions: data.totalCount,
       setNames: data.setNames,
       sets: Object.keys(data.sets).map(name => {
+        const access = records.find(r => r.quiz_set === name);
+        const identity = id => { const user = accounts.find(u => u.id === id); return user ? { id: user.id, name: user.name, username: user.username, active: user.status === 'active' } : { id, name: 'Akun tidak tersedia', username: '', active: false }; };
         const summary = (data.setSummaries && data.setSummaries[name]) || {};
         return {
           name,
+          owner: access?.owner_id ? identity(access.owner_id) : null,
+          isOwner: access?.owner_id === req.user.id,
+          canManage: access?.owner_id === req.user.id || req.user.role === 'super_admin',
+          collaborators: (access?.collaborators || '').split(',').filter(Boolean).map(identity),
           count: data.sets[name].length,
           totalDuration: summary.totalDuration || (data.sets[name].reduce((acc, q) => acc + (q.duration_seconds || 20), 0)),
           firstQuestion: summary.firstQuestion || (data.sets[name][0] ? data.sets[name][0].question : ''),
@@ -218,12 +294,20 @@ app.post('/api/upload', (req, res) => {
     }
 
     try {
+      const data = await loadQuestionsForWrite();
+      await auth.ensureAccess(req.user, quizSet, data.setNames);
       const driveResult = await driveService.uploadMediaToDrive({
         buffer: file.buffer,
         filename: file.originalname,
         mimetype: file.mimetype,
         quizSet
       });
+      try {
+        await auth.store.exclusive(() => auth.store.save('MediaUploadsV2', { file_id: driveResult.fileId, quiz_set: quizSet, uploaded_by: req.user.id }));
+      } catch (error) {
+        await driveService.deleteDriveFile(driveResult.fileId).catch(() => {});
+        throw error;
+      }
 
       res.json({
         success: true,
@@ -234,7 +318,7 @@ app.post('/api/upload', (req, res) => {
       });
     } catch (uploadErr) {
       console.error('[UploadAPI] Gagal upload ke Google Drive:', uploadErr.message);
-      res.status(500).json({
+      res.status(uploadErr.status || 500).json({
         success: false,
         error: `Gagal mengunggah ke Google Drive: ${uploadErr.message}`
       });
@@ -279,6 +363,7 @@ app.get('/api/media-proxy', async (req, res) => {
 // API: ANALYTICS & EXPORT LAPORAN EXCEL (.xlsx)
 // ==========================================
 const recentSessionReports = new Map();
+const reportOwners = new Map();
 
 // API: Ambil Data Ringkasan Analisis Sesi Kuis (JSON)
 app.get('/api/session/:pin/analytics', (req, res) => {
@@ -319,7 +404,7 @@ app.get('/api/session/:pin/export-excel', async (req, res) => {
 
 // API: Daftar Sesi Kuis yang Dapat Diunduh
 app.get('/api/session/reports', (req, res) => {
-  const activeRooms = Array.from(gameState.rooms.keys()).map(pin => {
+  const activeRooms = Array.from(gameState.rooms.keys()).filter(pin => req.user.role === 'super_admin' || reportOwners.get(pin) === req.user.id).map(pin => {
     const data = gameState.getSessionReportData(pin);
     return {
       pin,
@@ -396,30 +481,21 @@ app.put('/api/admin/questions/:rowNumber', async (req, res) => {
 app.delete('/api/admin/questions/:rowNumber', async (req, res) => {
   try {
     const rowNumber = parseInt(req.params.rowNumber, 10);
-    const mediaUrl = req.query.mediaUrl || (req.body && req.body.mediaUrl);
 
     if (!rowNumber || rowNumber < 2) {
       return res.status(400).json({ success: false, error: 'Nomor baris tidak valid.' });
     }
 
-    // 1. Cascade delete file media di Google Drive jika ada
-    if (mediaUrl) {
-      try {
-        await driveService.deleteDriveFile(mediaUrl);
-      } catch (driveErr) {
-        console.warn('[AdminAPI] Lewati hapus file Drive:', driveErr.message);
-      }
-    }
-
-    // 2. Hapus baris dari Google Spreadsheet via Sheets API
+    // Delete the row first; never delete untracked links or media still in use.
     await deleteQuestionRow(rowNumber);
+    await cleanupUploadedMedia([req.authorizedQuestion], Object.values(req.questionData.sets).flat().filter(q => q.sheetRowIndex !== rowNumber));
 
     // Reset cache
     questionsCache = null;
 
     res.json({
       success: true,
-      message: `Soal pada baris ${rowNumber} dan file media Google Drive terkait berhasil dihapus!`
+      message: `Soal pada baris ${rowNumber} berhasil dihapus.`
     });
   } catch (err) {
     console.error('[AdminAPI] Gagal menghapus soal:', err.message);
@@ -430,28 +506,27 @@ app.delete('/api/admin/questions/:rowNumber', async (req, res) => {
 // API: Hapus Seluruh Set Kuis (Cascade Delete folder set di Google Drive + Hapus Baris Spreadsheet)
 app.delete('/api/admin/quiz-sets/:setName', async (req, res) => {
   try {
-    const setName = decodeURIComponent(req.params.setName);
+    const setName = req.params.setName;
 
     if (!setName) {
       return res.status(400).json({ success: false, error: 'Nama set kuis tidak valid.' });
     }
 
-    // 1. Cascade delete folder quiz_set di Google Drive (Images & Videos)
-    try {
-      await driveService.deleteQuizSetFolders(setName);
-    } catch (driveErr) {
-      console.warn('[AdminAPI] Lewati hapus folder Drive set:', driveErr.message);
-    }
-
-    // 2. Hapus semua baris set di Google Spreadsheet
-    const deleteResult = await deleteQuizSetRows(setName);
+    const questions = Object.values(req.questionData.sets).flat();
+    const removed = questions.filter(q => q.quiz_set.toLowerCase() === setName.toLowerCase());
+    const deleteResult = removed.length ? await deleteQuizSetRows(setName) : { deletedCount: 0 };
+    await auth.store.exclusive(async () => {
+      const record = (await auth.store.all('QuizAccessV2')).find(r => r.quiz_set === setName);
+      if (record) await auth.store.save('QuizAccessV2', { ...record, quiz_set: '', owner_id: '', collaborators: '' });
+    });
+    await cleanupUploadedMedia(removed, questions.filter(q => !removed.includes(q)));
 
     // Reset cache
     questionsCache = null;
 
     res.json({
       success: true,
-      message: `Set "${setName}" (${deleteResult.deletedCount} soal) dan seluruh media terkait di Google Drive berhasil dihapus!`
+      message: `Set "${setName}" (${deleteResult.deletedCount} soal) berhasil dihapus.`
     });
   } catch (err) {
     console.error('[AdminAPI] Gagal menghapus set kuis:', err.message);
@@ -472,6 +547,20 @@ app.get('/api/health', (req, res) => {
 
 // Socket.io Game Logic
 io.on('connection', (socket) => {
+  socket.use(async ([event, payload], next) => {
+    if (!event.startsWith('host:')) return next();
+    try {
+      if (!auth.originAllowed(socket.request)) throw new Error('Origin tidak valid.');
+      const user = await auth.identify(socket.request);
+      if (!user || user.status !== 'active' || user.must_change_password === 'true') throw new Error('Silakan masuk dengan akun aktif.');
+      socket.account = user;
+      if (event !== 'host:create_room') {
+        const room = gameState.getRoom(payload?.pin);
+        if (!room || room.hostSocketId !== socket.id || reportOwners.get(payload.pin) !== user.id) throw new Error('Anda bukan host sesi ini.');
+      }
+      next();
+    } catch (error) { socket.emit('host:error', { message: 'Akses host ditolak. Periksa akun dan sesi Anda.' }); }
+  });
   console.log(`[Socket] Klien terhubung: ${socket.id}`);
 
   // ============================
@@ -483,6 +572,7 @@ io.on('connection', (socket) => {
     try {
       const data = await getCachedQuestions();
       const selectedSet = quizSet || data.setNames[0] || 'Default';
+      if (!(await auth.canAccess(socket.account, selectedSet))) throw new Error('Anda tidak memiliki akses ke kuis ini.');
       const questions = data.sets[selectedSet] || [];
 
       if (questions.length === 0) {
@@ -492,6 +582,7 @@ io.on('connection', (socket) => {
 
       const pin = gameState.generatePin();
       const room = gameState.createRoom(pin, selectedSet, questions, socket.id);
+      reportOwners.set(pin, socket.account.id);
       socket.join(`room_${pin}`);
 
       // URL join akurat menggunakan Base URL production atau IP lokal jaringan
@@ -526,6 +617,7 @@ io.on('connection', (socket) => {
 
   // 2. Host Toggle Mode Autoplay
   socket.on('host:toggle_autoplay', ({ pin, enabled, skipWhenAllAnswered }) => {
+    if (gameState.getRoom(pin)?.hostSocketId !== socket.id) return;
     const room = gameState.setAutoplay(pin, enabled, skipWhenAllAnswered);
     if (room && room.hostSocketId === socket.id) {
       socket.emit('host:autoplay_status', {
@@ -597,6 +689,19 @@ io.on('connection', (socket) => {
   // ============================
 
   // 1. Player Bergabung
+  const reactionEmojis = new Set(['👍', '😂', '🎉', '🔥', '😮', '❤️']);
+  let lastReaction = 0;
+  socket.on('player:reaction', (payload, acknowledge) => {
+    const reply = data => { if (typeof acknowledge === 'function') acknowledge(data); };
+    const room = gameState.getRoom(payload?.pin);
+    const player = room?.players.get(socket.id);
+    if (!player || room.state !== 'LOBBY' || !reactionEmojis.has(payload?.emoji)) return reply({ success: false, message: 'Reaksi hanya tersedia di ruang tunggu.' });
+    const now = Date.now();
+    if (now - lastReaction < 2000) return reply({ success: false, retryAfter: 2000 - (now - lastReaction), message: 'Tunggu sebentar sebelum bereaksi lagi.' });
+    lastReaction = now;
+    io.to(`room_${room.pin}`).emit('room:reaction', { pin: room.pin, emoji: payload.emoji });
+    reply({ success: true });
+  });
   socket.on('player:join', ({ pin, nickname }) => {
     const result = gameState.addPlayer(pin, socket.id, nickname);
 
@@ -818,5 +923,7 @@ module.exports = {
   app,
   server,
   getBaseUrl,
-  getLocalIpAddress
+  getLocalIpAddress,
+  auth,
+  io
 };

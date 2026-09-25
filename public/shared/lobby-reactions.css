@@ -1,0 +1,13 @@
+.lobby-reactions { margin-top: 24px; }
+.lobby-reactions > p { font-size: 14px; line-height: 1.5; }
+.lobby-reaction-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 12px 0; }
+.lobby-reaction-buttons button { display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border-radius: 12px; border: 1px solid #56667e; background: #161f30; font-size: 26px; cursor: pointer; }
+.lobby-reaction-buttons button:hover { background: #26354d; }
+.lobby-reaction-buttons button:focus-visible { outline: 3px solid #22d3c5; outline-offset: 3px; }
+.lobby-reaction-buttons button:disabled { opacity: .5; cursor: default; }
+.lobby-reaction-status { color: #a9b8ce; min-height: 42px; }
+.lobby-reaction-layer { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 60; }
+.lobby-reaction-float { position: absolute; bottom: 8%; font-size: clamp(32px, 4vw, 56px); animation: lobby-reaction-rise 2.8s ease-out forwards; }
+@keyframes lobby-reaction-rise { from { transform: translateY(0) rotate(-8deg); opacity: 1; } to { transform: translateY(-45vh) rotate(10deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lobby-reaction-float { animation: none; bottom: 16%; } }
+@media (max-width: 450px) { .lobby-reaction-buttons { display: grid; grid-template-columns: repeat(3, 48px); } }

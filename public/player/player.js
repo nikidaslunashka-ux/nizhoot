@@ -567,3 +567,5 @@ socket.on('connect', () => {
     });
   }
 });
+
+setupLobbyReactions(socket, views.lobby, () => myPin, true);

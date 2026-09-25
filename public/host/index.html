@@ -6,12 +6,10 @@
   <title>Nizhoot — Layar Host (Proyektor)</title>
   <link rel="icon" type="image/png" href="/assets/images/nizhoot-logo.png">
   <link rel="stylesheet" href="/host/host.css">
+  <link rel="stylesheet" href="/auth/account.css">
+  <script src="/shared/account.js"></script>
   <script src="/shared/lucide.js"></script>
-  <script>
-    if (typeof lucide === 'undefined') {
-      document.write('<script src="https://unpkg.com/lucide@1.41.0/dist/umd/lucide.js"><\/script>');
-    }
-  </script>
+  <link rel="stylesheet" href="/shared/lobby-reactions.css">
 </head>
 <body>
   <!-- HEADER PERSISTEN -->
@@ -37,6 +35,7 @@
     </div>
 
     <div class="header-actions">
+      <a href="/admin" class="navigation-button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7M5 12h14"/></svg><span>Bank soal</span></a>
       <button id="btnEndSession" class="btn-danger-outline" style="display: none;" title="Akhiri sesi kuis lebih awal">
         <i data-lucide="square"></i> Akhiri Sesi
       </button>
@@ -344,6 +343,7 @@
   <!-- Socket.io & Sound Engine Scripts -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="/shared/soundFX.js"></script>
+  <script src="/shared/lobby-reactions.js"></script>
   <script src="/host/host.js"></script>
 </body>
 </html>

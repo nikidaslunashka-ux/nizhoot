@@ -671,3 +671,5 @@ function stopConfetti() {
 }
 
 document.addEventListener('DOMContentLoaded', initHost);
+
+setupLobbyReactions(socket, views.lobby, () => currentPin, false);

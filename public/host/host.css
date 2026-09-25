@@ -791,10 +791,6 @@ input:checked + .slider:before {
 .card-c { background-color: var(--color-c); color: #0B0F19; }
 .card-d { background-color: var(--color-d); color: #0B0F19; }
 
-.card-c .answer-label, .card-d .answer-label { color: #0B0F19; opacity: 0.95; }
-.card-c .answer-text, .card-d .answer-text { color: #0B0F19; }
-.card-c .shape-icon, .card-d .shape-icon { background-color: #0B0F19; }
-
 .answer-card .answer-label {
   font-size: 1.6rem;
   font-weight: 900;
@@ -807,6 +803,11 @@ input:checked + .slider:before {
   line-height: 1.3;
   color: #FFF;
 }
+
+.card-c .answer-label, .card-d .answer-label { color: #0B0F19; opacity: 0.95; }
+.card-c .answer-text, .card-d .answer-text { color: #0B0F19 !important; }
+.card-c .shape-icon, .card-d .shape-icon { background-color: #0B0F19; }
+
 
 /* ===================================================
    VIEW 4: ROUND SUMMARY

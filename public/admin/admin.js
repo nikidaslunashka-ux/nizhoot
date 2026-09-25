@@ -105,15 +105,51 @@ btnBackToDashboard.addEventListener('click', () => {
 // 2. MODAL BUAT SET BARU
 // ==========================================
 
-function openModal() {
+let editingAccess = false, accessBusy = false, selectedCollaborators = [], pickerSequence = 0;
+document.getElementById('btnManageCollaborators').onclick = () => openModal(quizSetsData.find(set => set.name === activeSetName));
+const picker = document.createElement('div'); picker.className = 'collaborator-picker';
+picker.innerHTML = '<label for="collaborator-search">Kolaborator (opsional)</label><p>Kolaborator dapat menambah dan mengedit soal serta menjalankan kuis.</p><div id="selected-collaborators"></div><input id="collaborator-search" class="form-control" type="search" autocomplete="off" placeholder="Cari nama atau username" aria-describedby="collaborator-status"><p id="collaborator-status" role="status"></p><div id="collaborator-results"></div><p id="collaborator-error" role="alert"></p>';
+formCreateSetModal.querySelector('.modal-actions').before(picker);
+const searchCollaborators = document.getElementById('collaborator-search');
+function renderCollaboratorSelection() {
+  const area = document.getElementById('selected-collaborators'); area.replaceChildren();
+  for (const user of selectedCollaborators) { const button = document.createElement('button'); button.type = 'button'; button.className = 'collaborator-chip'; button.textContent = `${user.name} (@${user.username}) ×`; button.setAttribute('aria-label', `Hapus kolaborator ${user.name}`); button.onclick = () => { if (accessBusy) return; selectedCollaborators = selectedCollaborators.filter(u => u.id !== user.id); renderCollaboratorSelection(); searchCollaborators.focus(); findCollaborators(); }; area.append(button); }
+}
+async function findCollaborators() {
+  const sequence = ++pickerSequence;
+  const results = document.getElementById('collaborator-results'), status = document.getElementById('collaborator-status');
+  results.replaceChildren(); status.textContent = 'Mencari akun aktif…';
+  try {
+    const data = await accountApi(`/api/access/users?q=${encodeURIComponent(searchCollaborators.value.trim())}`);
+    if (sequence !== pickerSequence) return;
+    const ownerId = editingAccess ? quizSetsData.find(s => s.name === inputModalSetName.value)?.owner?.id : null;
+    const users = data.users.filter(u => u.id !== ownerId && !selectedCollaborators.some(s => s.id === u.id));
+    status.textContent = users.length ? 'Pilih akun untuk menambahkan. Persempit pencarian jika belum terlihat.' : 'Tidak ada akun lain yang cocok.';
+    for (const user of users) { const button = document.createElement('button'); button.type = 'button'; button.className = 'collaborator-result'; button.textContent = `${user.name} · @${user.username}`; button.onclick = () => { if (accessBusy) return; selectedCollaborators.push(user); renderCollaboratorSelection(); findCollaborators(); searchCollaborators.focus(); }; results.append(button); }
+  } catch { if (sequence === pickerSequence) status.textContent = 'Pencarian gagal. Ketik ulang untuk mencoba lagi.'; }
+}
+let searchTimer;
+searchCollaborators.addEventListener('input', () => { ++pickerSequence; clearTimeout(searchTimer); searchTimer = setTimeout(findCollaborators, 250); });
+function openModal(set = null) {
+  if (accessBusy) return;
+  editingAccess = Boolean(set?.name);
+  selectedCollaborators = editingAccess ? [...set.collaborators] : [];
   modalCreateSet.classList.add('active');
-  inputModalSetName.value = '';
+  inputModalSetName.value = editingAccess ? set.name : '';
+  inputModalSetName.readOnly = editingAccess; inputModalSetName.maxLength = 100;
+  document.getElementById('modalCreateSetTitle').textContent = editingAccess ? 'Kelola kolaborator' : 'Buat Paket Kuis Baru';
+  modalCreateSet.querySelector('.modal-desc').textContent = editingAccess ? 'Pemilik dan super admin dapat mengubah akses kuis ini.' : 'Beri nama kuis dan pilih rekan yang akan membantu. Soal dapat ditambahkan setelah paket dibuat.';
+  formCreateSetModal.querySelector('[type=submit]').textContent = editingAccess ? 'Simpan kolaborator' : 'Buat kuis';
+  document.getElementById('collaborator-error').textContent = ''; searchCollaborators.value = ''; renderCollaboratorSelection(); findCollaborators();
   renderLucideIcons();
   setTimeout(() => inputModalSetName.focus(), 100);
 }
 
 function closeModal() {
+  if (accessBusy) return;
+  ++pickerSequence;
   modalCreateSet.classList.remove('active');
+  (editingAccess ? document.getElementById('btnManageCollaborators') : btnOpenCreateSetModal).focus();
 }
 
 btnOpenCreateSetModal.addEventListener('click', openModal);
@@ -130,13 +166,23 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-formCreateSetModal.addEventListener('submit', (e) => {
+formCreateSetModal.addEventListener('submit', async (e) => {
   e.preventDefault();
   const setName = inputModalSetName.value.trim();
-  if (!setName) return;
-
-  closeModal();
-  switchView('detail', setName);
+  if (!setName || accessBusy) return;
+  accessBusy = true; formCreateSetModal.setAttribute('aria-busy', 'true');
+  const controls = [...formCreateSetModal.querySelectorAll('input, button')]; controls.forEach(node => node.disabled = true);
+  try { await accountApi('/api/access/sets', { name: setName, collaborators: selectedCollaborators.map(u => u.id) }, editingAccess ? 'PUT' : 'POST'); await loadData(); accessBusy = false; closeModal(); switchView('detail', setName); }
+  catch (error) { document.getElementById('collaborator-error').textContent = error.message; }
+  finally { accessBusy = false; formCreateSetModal.removeAttribute('aria-busy'); controls.forEach(node => node.disabled = false); }
+});
+modalCreateSet.addEventListener('keydown', event => {
+  if (event.key !== 'Tab') return;
+  const nodes = [...modalCreateSet.querySelectorAll('input:not([disabled]),button:not([disabled])')];
+  const first = nodes[0], last = nodes[nodes.length - 1];
+  if (!first) { event.preventDefault(); return; }
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 });
 
 // ==========================================
@@ -228,11 +274,18 @@ function renderDashboardCards(sets) {
 
       // Tombol hapus set pada card
       const btnDel = card.querySelector('.quiz-card-btn-delete');
+      btnDel.hidden = !set.canManage;
       btnDel.addEventListener('click', (e) => {
         e.stopPropagation();
         handleDeleteQuizSet(set.name, set.count);
       });
 
+      const people = document.createElement('div'); people.className = 'quiz-people';
+      const owner = document.createElement('p'); owner.textContent = `Pemilik: ${set.isOwner ? 'Anda' : set.owner ? `${set.owner.name} (@${set.owner.username})` : 'Belum ditetapkan'}`; people.append(owner);
+      const members = set.collaborators || [];
+      const names = document.createElement('p'); names.textContent = `Kolaborator: ${members.length ? members.slice(0, 3).map(u => u.name).join(', ') : 'Belum ada'}`; people.append(names);
+      if (members.length > 3) { const details = document.createElement('details'), summary = document.createElement('summary'), all = document.createElement('p'); summary.textContent = `+${members.length - 3} lainnya`; all.textContent = members.map(u => `${u.name} (@${u.username})`).join(', '); details.append(summary, all); details.addEventListener('click', event => event.stopPropagation()); people.append(details); }
+      card.querySelector('.quiz-card-preview').after(people);
       quizSetsGrid.appendChild(card);
     });
   }
@@ -260,6 +313,8 @@ function updateDetailView(setName) {
   inputQuizSet.value = setName;
 
   const currentSet = quizSetsData.find(s => s.name.toLowerCase() === setName.toLowerCase());
+  document.getElementById('btnManageCollaborators').hidden = !currentSet?.canManage;
+  btnDeleteCurrentSet.hidden = !currentSet?.canManage;
   const questions = currentSet ? currentSet.questions : [];
   const count = questions.length;
   const totalDuration = questions.reduce((acc, q) => acc + (q.duration_seconds || 20), 0);
@@ -817,7 +872,7 @@ function showToast(msg, type) {
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str || '';
-  return div.innerHTML;
+  return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 btnRefreshList.addEventListener('click', () => loadData(true));

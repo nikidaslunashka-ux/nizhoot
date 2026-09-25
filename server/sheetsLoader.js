@@ -259,7 +259,7 @@ async function appendQuestionToSheet(data) {
   const response = await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: 'A:K',
-    valueInputOption: 'USER_ENTERED',
+    valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
     requestBody: {
       values: [rowValues]
@@ -280,6 +280,9 @@ async function appendQuestionToSheet(data) {
  * Update 1 baris soal di Google Spreadsheet via Sheets API (Edit Soal)
  */
 async function updateQuestionRow(sheetRowIndex, data) {
+  const imageUrl = driveService.convertDriveUrl(String(data.image_url || '').trim(), 'image');
+  const videoUrl = driveService.convertDriveUrl(String(data.video_url || '').trim(), 'video');
+  const quizSet = String(data.quiz_set || 'Default').trim() || 'Default';
   const rowIdx = parseInt(sheetRowIndex, 10);
   if (isNaN(rowIdx) || rowIdx < 2) {
     throw new Error(`Nomor baris tidak valid: ${sheetRowIndex}`);
@@ -330,7 +333,7 @@ async function updateQuestionRow(sheetRowIndex, data) {
   const response = await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: `A${rowIdx}:K${rowIdx}`,
-    valueInputOption: 'USER_ENTERED',
+    valueInputOption: 'RAW',
     requestBody: {
       values: [rowValues]
     }
@@ -524,8 +527,8 @@ async function loadQuestions(customUrl) {
  * Kelompokkan soal berdasarkan set kuis
  */
 function groupQuestions(questionsList, source) {
-  const sets = {};
-  const setSummaries = {};
+  const sets = Object.create(null);
+  const setSummaries = Object.create(null);
 
   for (const q of questionsList) {
     const setName = q.quiz_set || 'Default';
@@ -559,6 +562,10 @@ function groupQuestions(questionsList, source) {
 }
 
 module.exports = {
+  loadQuestionsForWrite: async () => {
+    if (!process.env.SPREADSHEET_ID) throw new Error('Spreadsheet soal belum dikonfigurasi.');
+    return loadQuestionsFromSheetsApi(process.env.SPREADSHEET_ID);
+  },
   loadQuestions,
   appendQuestionToSheet,
   updateQuestionRow,

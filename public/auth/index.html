@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Masuk — Nizhoot</title><link rel="icon" type="image/webp" href="/assets/images/nizhoot-logo-account.webp"><link rel="stylesheet" href="/auth/account.css"><script src="/shared/password-policy.js" defer></script><script src="/shared/account.js" defer></script><script src="/auth/auth.js" defer></script></head>
+<body class="account-page">
+<!-- THESIS: Satu gerbang akun dengan status persetujuan yang jelas.
+OWN-WORLD: Navy Arena, aksen biru dan cyan, font sistem, form berlabel.
+STORY: Daftar, lihat status, mulai mengelola kuis setelah disetujui.
+FIRST VIEWPORT: Penjelasan singkat di kiri, satu form fokus di kanan; mobile satu kolom.
+FORM: Alur operasional yang disepakati; perluasan identitas Nizhoot.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance -->
+<main class="shell"><header class="brandline"><a href="/auth/" aria-label="Nizhoot — masuk"><img class="logo" src="/assets/images/nizhoot-logo-account.webp" width="300" height="200" alt="Nizhoot"></a><a class="join-quiz" href="/player"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6M15 12H3M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/></svg><span>Gabung kuis</span></a></header>
+<div class="auth-layout"><section><h1 id="intro-title">Kuis seru dimulai dari Anda.</h1><p class="muted" id="intro-copy">Masuk untuk menyiapkan soal dan memandu sesi kuis bersama peserta.</p><ol class="steps"><li><strong>Buat akun Nizhoot</strong><br>Gunakan username dan password pilihan Anda.</li><li><strong>Tunggu persetujuan</strong><br>Super admin meninjau pendaftaran Anda.</li><li><strong>Siapkan kuis pertama</strong><br>Kelola soal, tambahkan media, lalu mulai sesi.</li></ol></section>
+<section class="form-surface" aria-labelledby="form-title"><h2 id="form-title">Masuk ke akun</h2><p class="muted" id="form-copy">Memuat informasi akun…</p><div id="message" class="notice" role="status" hidden></div><div id="content"></div><aside id="support-help" class="support-help" aria-label="Bantuan akun" aria-live="polite"></aside></section></div></main>
+</body></html>

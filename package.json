@@ -5,7 +5,9 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "test": "node test/verify.js && node test/test_avatar_lucide.js && node test/test_edit_question.js && node test/test_production_qr.js && node test/test_excel_export.js"
+    "test": "node test/verify.js && node test/test_avatar_lucide.js && node test/test_edit_question.js && node test/test_production_qr.js && node test/test_excel_export.js && node test/auth.test.js",
+    "bootstrap-admin": "node scripts/bootstrap-admin.js",
+    "test:auth": "node test/auth.test.js"
   },
   "author": "",
   "license": "ISC",
