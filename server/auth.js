@@ -71,7 +71,18 @@ function createAuth(store = new AccountStore()) {
     if (!user || user.version !== session.version) { sessions.delete(token); return null; }
     return user;
   }
-  const wrap = work => async (req, res, next) => { try { await work(req, res, next); } catch (error) { res.status(error.status || 503).json({ success: false, error: error.status ? error.message : 'Layanan penyimpanan tidak tersedia. Coba lagi sebentar.', ...(error.status && error.field ? { field: error.field } : {}) }); } };
+  const wrap = work => async (req, res, next) => {
+    try {
+      await work(req, res, next);
+    } catch (error) {
+      if (!error.status) console.error('[Auth Storage Error]', error);
+      res.status(error.status || 503).json({
+        success: false,
+        error: error.status ? error.message : 'Layanan penyimpanan tidak tersedia. Coba lagi sebentar.',
+        ...(error.status && error.field ? { field: error.field } : {})
+      });
+    }
+  };
   const active = wrap(async (req, res, next) => {
     req.user = await identify(req);
     if (!req.user) return res.status(401).json({ success: false, error: 'Silakan masuk kembali.' });
