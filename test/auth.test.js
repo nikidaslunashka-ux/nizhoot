@@ -17,8 +17,8 @@ loader.appendQuestionToSheet = async data => { questions.push({ ...data, sheetRo
 loader.updateQuestionRow = async (row, data) => { Object.assign(questions.find(q => q.sheetRowIndex === row), data); return {}; };
 loader.deleteQuestionRow = async () => { deletes++; };
 const { app, server, auth, io } = require('../server/index');
-const tables = { AccountsV2: [], QuizAccessV2: [], MediaUploadsV2: [], AppSettingsV2: [] };
-auth.store.all = async table => structuredClone(tables[table]);
+const tables = { AccountsV2: [], QuizAccessV2: [], MediaUploadsV2: [], AppSettingsV2: [], SessionReportsV2: [] };
+auth.store.all = async table => structuredClone(tables[table] || []);
 auth.store.save = async (table, record) => {
   if (record._row) tables[table][record._row - 2] = structuredClone(record);
   else tables[table].push({ ...record, _row: tables[table].length + 2 });

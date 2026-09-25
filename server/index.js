@@ -122,7 +122,16 @@ app.delete('/api/admin/quiz-sets/:setName', auth.wrap(async (req, res, next) => 
 app.use('/api/session', auth.wrap(async (req, res, next) => {
   if (req.path === '/reports') return next();
   const pin = req.path.split('/')[1];
-  const owner = reportOwners.get(pin);
+  let owner = reportOwners.get(pin);
+  if (!owner && auth.store) {
+    try {
+      const saved = (await auth.store.all('SessionReportsV2') || []).find(r => String(r.pin) === String(pin));
+      if (saved) {
+        owner = saved.owner_id;
+        reportOwners.set(pin, owner);
+      }
+    } catch (e) {}
+  }
   if (req.user.role !== 'super_admin' && owner !== req.user.id) return res.status(403).json({ success: false, error: 'Laporan ini bukan milik Anda.' });
   next();
 }));
@@ -365,22 +374,77 @@ app.get('/api/media-proxy', async (req, res) => {
 const recentSessionReports = new Map();
 const reportOwners = new Map();
 
+async function persistSessionReport(pin) {
+  try {
+    const reportData = gameState.getSessionReportData(pin) || recentSessionReports.get(pin);
+    if (!reportData || !reportData.pin) return;
+    const ownerId = reportOwners.get(pin) || '';
+    recentSessionReports.set(pin, reportData);
+    if (ownerId) reportOwners.set(pin, ownerId);
+
+    if (!auth.store) return;
+    await auth.store.exclusive(async () => {
+      const allReports = (await auth.store.all('SessionReportsV2')) || [];
+      const existing = allReports.find(r => String(r.pin) === String(pin));
+      const record = {
+        pin: String(pin),
+        quiz_set: String(reportData.quizSet || ''),
+        owner_id: String(ownerId || existing?.owner_id || ''),
+        total_participants: String(reportData.totalParticipants || 0),
+        created_at: String(reportData.createdAt || new Date().toISOString()),
+        report_json: JSON.stringify(reportData),
+        ...(existing?._row ? { _row: existing._row } : {})
+      };
+      await auth.store.save('SessionReportsV2', record);
+      console.log(`[SessionReport] Sesi PIN ${pin} berhasil disimpan permanen ke Google Sheets.`);
+    });
+  } catch (err) {
+    console.error(`[SessionReport] Gagal menyimpan sesi PIN ${pin} ke Google Sheets:`, err.message);
+  }
+}
+
 // API: Ambil Data Ringkasan Analisis Sesi Kuis (JSON)
-app.get('/api/session/:pin/analytics', (req, res) => {
+app.get('/api/session/:pin/analytics', auth.wrap(async (req, res) => {
   const pin = req.params.pin;
-  const reportData = gameState.getSessionReportData(pin) || recentSessionReports.get(pin);
+  let reportData = gameState.getSessionReportData(pin) || recentSessionReports.get(pin);
+  if (!reportData && auth.store) {
+    try {
+      const allReports = (await auth.store.all('SessionReportsV2')) || [];
+      const saved = allReports.find(r => String(r.pin) === String(pin));
+      if (saved && saved.report_json) {
+        reportData = JSON.parse(saved.report_json);
+        recentSessionReports.set(pin, reportData);
+        if (saved.owner_id) reportOwners.set(pin, saved.owner_id);
+      }
+    } catch (e) {
+      console.error('[SessionAnalytics] Gagal membaca dari SessionReportsV2:', e.message);
+    }
+  }
   if (!reportData) {
     return res.status(404).json({ success: false, error: `Sesi kuis dengan PIN ${pin} tidak ditemukan.` });
   }
   recentSessionReports.set(pin, reportData);
   res.json({ success: true, report: reportData });
-});
+}));
 
 // API: Unduh Laporan Excel (.xlsx) Kuis Komprehensif 3-Sheet
-app.get('/api/session/:pin/export-excel', async (req, res) => {
+app.get('/api/session/:pin/export-excel', auth.wrap(async (req, res) => {
   try {
     const pin = req.params.pin;
-    const reportData = gameState.getSessionReportData(pin) || recentSessionReports.get(pin);
+    let reportData = gameState.getSessionReportData(pin) || recentSessionReports.get(pin);
+    if (!reportData && auth.store) {
+      try {
+        const allReports = (await auth.store.all('SessionReportsV2')) || [];
+        const saved = allReports.find(r => String(r.pin) === String(pin));
+        if (saved && saved.report_json) {
+          reportData = JSON.parse(saved.report_json);
+          recentSessionReports.set(pin, reportData);
+          if (saved.owner_id) reportOwners.set(pin, saved.owner_id);
+        }
+      } catch (e) {
+        console.error('[ExportExcelAPI] Gagal membaca dari SessionReportsV2:', e.message);
+      }
+    }
     if (!reportData) {
       return res.status(404).send(`Sesi kuis dengan PIN ${pin} tidak ditemukan atau belum memiliki data jawaban.`);
     }
@@ -400,22 +464,65 @@ app.get('/api/session/:pin/export-excel', async (req, res) => {
     console.error('[ExportExcelAPI] Gagal membuat laporan Excel:', err);
     res.status(500).send(`Gagal membuat file laporan Excel: ${err.message}`);
   }
-});
+}));
 
-// API: Daftar Sesi Kuis yang Dapat Diunduh
-app.get('/api/session/reports', (req, res) => {
-  const activeRooms = Array.from(gameState.rooms.keys()).filter(pin => req.user.role === 'super_admin' || reportOwners.get(pin) === req.user.id).map(pin => {
-    const data = gameState.getSessionReportData(pin);
-    return {
-      pin,
-      quizSet: data.quizSet,
-      totalParticipants: data.totalParticipants,
-      state: data.state,
-      createdAt: data.createdAt
-    };
-  });
-  res.json({ success: true, sessions: activeRooms });
-});
+// API: Daftar Sesi Kuis yang Dapat Diunduh (Memori Aktif + Riwayat Google Sheets)
+app.get('/api/session/reports', auth.wrap(async (req, res) => {
+  const seenPins = new Set();
+  const sessions = [];
+
+  // 1. Sesi aktif dari memori server
+  for (const pin of gameState.rooms.keys()) {
+    const owner = reportOwners.get(pin);
+    if (req.user.role === 'super_admin' || owner === req.user.id) {
+      const data = gameState.getSessionReportData(pin);
+      if (data) {
+        seenPins.add(String(pin));
+        sessions.push({
+          pin: String(pin),
+          quizSet: data.quizSet,
+          totalParticipants: data.totalParticipants,
+          state: data.state,
+          createdAt: data.createdAt
+        });
+      }
+    }
+  }
+
+  // 2. Sesi tersimpan permanen dari Google Sheets (SessionReportsV2)
+  if (auth.store) {
+    try {
+      const savedReports = (await auth.store.all('SessionReportsV2')) || [];
+      for (const r of savedReports) {
+        const pin = String(r.pin);
+        if (pin && !seenPins.has(pin)) {
+          if (req.user.role === 'super_admin' || r.owner_id === req.user.id) {
+            seenPins.add(pin);
+            sessions.push({
+              pin,
+              quizSet: r.quiz_set,
+              totalParticipants: Number(r.total_participants) || 0,
+              state: 'FINAL_PODIUM',
+              createdAt: r.created_at
+            });
+            if (r.report_json && !recentSessionReports.has(pin)) {
+              try {
+                recentSessionReports.set(pin, JSON.parse(r.report_json));
+                reportOwners.set(pin, r.owner_id);
+              } catch (e) {}
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[SessionReports] Gagal memuat dari Google Sheets:', e.message);
+    }
+  }
+
+  // Urutkan dari yang paling baru
+  sessions.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  res.json({ success: true, sessions });
+}));
 
 // API: Tambah Soal Baru ke Google Spreadsheet via Sheets API
 app.post('/api/admin/questions', async (req, res) => {
@@ -674,6 +781,7 @@ io.on('connection', (socket) => {
     if (finalData) {
       io.to(`room_${pin}`).emit('game:final_podium', finalData);
       console.log(`[Game] Sesi PIN ${pin} diakhiri lebih awal. Menampilkan podium final.`);
+      persistSessionReport(pin);
     }
   });
 
@@ -902,6 +1010,7 @@ function triggerFinalPodium(pin) {
 
   io.to(`room_${pin}`).emit('game:final_podium', finalData);
   console.log(`[Game] Kuis berakhir untuk PIN: ${pin}.`);
+  persistSessionReport(pin);
 }
 
 // Start Server

@@ -3,7 +3,8 @@ const schemas = {
   AccountsV2: ['id', 'username', 'name', 'password_hash', 'role', 'status', 'must_change_password', 'created_at', 'reviewed_at', 'reviewed_by', 'version', 'photo'],
   QuizAccessV2: ['quiz_set', 'owner_id', 'collaborators'],
   MediaUploadsV2: ['file_id', 'quiz_set', 'uploaded_by'],
-  AppSettingsV2: ['key', 'label', 'url']
+  AppSettingsV2: ['key', 'label', 'url'],
+  SessionReportsV2: ['pin', 'quiz_set', 'owner_id', 'total_participants', 'created_at', 'report_json']
 };
 
 // Single-process writer: Sheets is not a transactional database. Run one instance.
