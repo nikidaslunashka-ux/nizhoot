@@ -23,6 +23,13 @@ auth.store.save = async (table, record) => {
   if (record._row) tables[table][record._row - 2] = structuredClone(record);
   else tables[table].push({ ...record, _row: tables[table].length + 2 });
 };
+auth.store.delete = async (table, rowNumber) => {
+  const rowIdx = parseInt(rowNumber, 10);
+  if (tables[table] && rowIdx >= 2) {
+    tables[table].splice(rowIdx - 2, 1);
+    tables[table].forEach((r, idx) => { r._row = idx + 2; });
+  }
+};
 let base, adminCookie, aliceCookie, bobCookie, aliceId;
 const password = 'Aa1!';
 async function request(route, body, cookie, method) {
@@ -191,6 +198,11 @@ test('host socket checks session, quiz ownership, room ownership, origin and rev
     assert.equal(require('../server/gameState').getRoom(room.pin).autoplay, true);
     assert.equal((await request(`/api/session/${room.pin}/analytics`, undefined, bobCookie)).status, 403);
     assert.equal((await request(`/api/session/${room.pin}/analytics`, undefined, aliceCookie)).status, 200);
+    assert.equal((await request(`/api/session/${room.pin}`, undefined, bobCookie, 'DELETE')).status, 403);
+    assert.equal((await request(`/api/session/${room.pin}`, undefined, aliceCookie, 'DELETE')).status, 200);
+    assert.equal((await request(`/api/session/${room.pin}/analytics`, undefined, aliceCookie)).status, 403);
+    const reports = await request('/api/session/reports', undefined, aliceCookie);
+    assert(!reports.data.sessions.some(s => s.pin === room.pin));
     const foreign = await connect(aliceCookie, 'https://other.invalid');
     await event(foreign, 'host:create_room', { quizSet: 'Mine' }, 'host:error');
     const login = await request('/api/auth/login', { username: 'alice', password });

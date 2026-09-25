@@ -646,6 +646,32 @@
       filter: brightness(1.1);
       transform: translateY(-1px);
     }
+    .session-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+    .btn-delete-session {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #F87171;
+      font-weight: 600;
+      font-size: 0.88rem;
+      padding: 0.55rem 0.95rem;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn-delete-session:hover {
+      background: #EF4444;
+      color: #FFFFFF;
+      border-color: #EF4444;
+      transform: translateY(-1px);
+    }
 
     /* MODAL BUAT SET BARU */
     .modal-overlay {
@@ -747,8 +773,14 @@
     flex-direction: column;
     align-items: flex-start;
   }
-  .btn-download-excel {
+  .session-actions {
     width: 100%;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .session-actions .btn-download-excel,
+  .session-actions .btn-delete-session {
+    flex: 1;
     justify-content: center;
   }
 }

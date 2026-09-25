@@ -885,6 +885,27 @@ if (btnRefreshReports) {
   btnRefreshReports.addEventListener('click', loadSessionReports);
 }
 
+async function deleteSessionReport(pin) {
+  if (!confirm(`Yakin ingin menghapus riwayat sesi kuis PIN ${pin}?\nData analisis dan riwayat sesi ini akan dihapus secara permanen.`)) {
+    return;
+  }
+
+  showToast(`Menghapus riwayat sesi PIN ${pin}...`, "success");
+
+  try {
+    const res = await fetch(`/api/session/${pin}`, { method: "DELETE" });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || "Riwayat sesi berhasil dihapus.", "success");
+      await loadSessionReports();
+    } else {
+      showToast(`Gagal menghapus: ${data.error}`, "error");
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, "error");
+  }
+}
+window.deleteSessionReport = deleteSessionReport;
 async function loadSessionReports() {
   const sessionReportsList = document.getElementById('sessionReportsList');
   if (!sessionReportsList) return;
@@ -908,9 +929,14 @@ async function loadSessionReports() {
               <div class="session-meta-sub">${s.totalParticipants || 0} Peserta • Status: ${s.state} • Dibuat: ${dateStr}</div>
             </div>
           </div>
-          <a href="/api/session/${s.pin}/export-excel" class="btn-download-excel" target="_blank">
-            <i data-lucide="file-spreadsheet"></i> Unduh Laporan Excel
-          </a>
+          <div class="session-actions">
+            <a href="/api/session/${s.pin}/export-excel" class="btn-download-excel" target="_blank" title="Unduh file Excel">
+              <i data-lucide="file-spreadsheet"></i> Unduh Excel
+            </a>
+            <button type="button" class="btn-delete-session" onclick="deleteSessionReport('${s.pin}')" title="Hapus Riwayat Sesi">
+              <i data-lucide="trash-2"></i> Hapus
+            </button>
+          </div>
         </div>
       `;
     }).join('');

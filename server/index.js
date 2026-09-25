@@ -524,6 +524,46 @@ app.get('/api/session/reports', auth.wrap(async (req, res) => {
   res.json({ success: true, sessions });
 }));
 
+// API: Hapus Riwayat Sesi Kuis (Memori Server & Google Sheets)
+app.delete('/api/session/:pin', auth.wrap(async (req, res) => {
+  const pin = req.params.pin;
+
+  // 1. Bersihkan dari memori aktif server
+  if (gameState.rooms.has(pin)) {
+    const room = gameState.rooms.get(pin);
+    if (room?.timerHandle) {
+      clearInterval(room.timerHandle);
+      room.timerHandle = null;
+    }
+    if (room?.autoplayTimer) {
+      clearTimeout(room.autoplayTimer);
+      room.autoplayTimer = null;
+    }
+    gameState.rooms.delete(pin);
+  }
+  recentSessionReports.delete(pin);
+  reportOwners.delete(pin);
+
+  // 2. Hapus baris dari Google Sheets (SessionReportsV2) jika terkonfigurasi
+  if (auth.store) {
+    try {
+      await auth.store.exclusive(async () => {
+        const allReports = (await auth.store.all('SessionReportsV2')) || [];
+        const saved = allReports.find(r => String(r.pin) === String(pin));
+        if (saved && saved._row) {
+          await auth.store.delete('SessionReportsV2', saved._row);
+          console.log(`[SessionReport] Sesi PIN ${pin} berhasil dihapus dari Google Sheets (baris ${saved._row}).`);
+        }
+      });
+    } catch (e) {
+      console.error(`[SessionReport] Gagal menghapus sesi PIN ${pin} dari Google Sheets:`, e.message);
+      return res.status(500).json({ success: false, error: `Gagal menghapus riwayat dari spreadsheet: ${e.message}` });
+    }
+  }
+
+  res.json({ success: true, message: `Riwayat sesi kuis PIN ${pin} berhasil dihapus.` });
+}));
+
 // API: Tambah Soal Baru ke Google Spreadsheet via Sheets API
 app.post('/api/admin/questions', async (req, res) => {
   try {
